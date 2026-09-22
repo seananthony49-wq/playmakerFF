@@ -71,7 +71,7 @@
         <div class="flex items-center space-x-2">
             <!-- Playbook Quick Selector & New Play -->
             <div class="hidden md:flex items-center gap-1.5 mr-2">
-                <select id="selectPlaybookItem" class="bg-slate-800 border border-slate-700 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 max-w-[160px] truncate">
+                <select id="selectPlaybookItem" class="bg-slate-800 border border-slate-700 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 max-w-[170px] truncate">
                     <!-- Populated dynamically via JS -->
                 </select>
                 <button id="btnNewPlayHeader" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1 shadow transition active:scale-95" title="Create New Play">
@@ -91,7 +91,7 @@
             
             <!-- Camera Selector -->
             <div class="flex bg-slate-800/80 p-1 rounded-lg border border-slate-700 text-xs">
-                <button data-cam="sideline" class="cam-btn px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition active-cam bg-blue-600 text-white font-semibold">
+                <button data-cam="sideline" class="cam-btn px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition">
                     <i class="fa-solid fa-video mr-1"></i> Sideline
                 </button>
                 <button data-cam="qb" class="cam-btn px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition">
@@ -100,8 +100,8 @@
                 <button data-cam="top" class="cam-btn px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition">
                     <i class="fa-solid fa-arrows-up-down-left-right mr-1"></i> All-22
                 </button>
-                <button data-cam="endzone" class="cam-btn px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition">
-                    <i class="fa-solid fa-crosshairs mr-1"></i> Endzone
+                <button data-cam="endzone" class="cam-btn px-2.5 py-1 rounded text-white bg-blue-600 font-semibold hover:bg-slate-700 transition active-cam">
+                    <i class="fa-solid fa-crosshairs mr-1"></i> Coach POV
                 </button>
             </div>
 
@@ -120,7 +120,7 @@
         <div class="absolute top-4 left-4 pointer-events-none z-10 flex flex-col gap-2">
             <div class="glass-panel rounded-xl p-3 px-4 shadow-xl border border-slate-700/60 max-w-sm pointer-events-auto">
                 <div class="flex items-center justify-between mb-1">
-                    <span id="displayPlayName" class="text-sm font-bold text-white tracking-wide">Twins Right Slant & Wheel</span>
+                    <span id="displayPlayName" class="text-sm font-bold text-white tracking-wide">Twins Slant & Fly</span>
                     <span id="displayFormationBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">TWINS RIGHT</span>
                 </div>
                 <div class="text-xs text-slate-300 flex items-center justify-between mb-2">
@@ -154,7 +154,7 @@
         <!-- Floating Quick Presets Bar -->
         <div class="absolute top-4 right-4 z-10 hidden sm:flex flex-col gap-1.5 glass-panel p-2 rounded-xl border border-slate-700/60 max-w-xs">
             <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase px-2">8U Recommended Plays</span>
-            <div class="flex flex-col gap-1">
+            <div class="flex flex-col gap-1" id="quickPresetsContainer">
                 <button onclick="loadPreset('twins_cross')" class="preset-btn text-left text-xs px-2.5 py-1.5 rounded-lg bg-slate-800/70 hover:bg-blue-600/50 hover:text-white text-slate-300 transition flex items-center justify-between">
                     <span>Twins Slant & Fly</span>
                     <i class="fa-solid fa-arrow-trend-up text-[10px] text-blue-400"></i>
@@ -212,11 +212,29 @@
                     </div>
                 </div>
 
+                <!-- Backup & Restore Toolbar (Export / Import / Reset) -->
+                <div class="p-2 bg-slate-950/60 rounded-lg border border-slate-800 flex items-center justify-between text-[11px]">
+                    <div class="flex items-center gap-1.5">
+                        <button id="btnExportPlaybook" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition">
+                            <i class="fa-solid fa-file-export text-[10px] text-cyan-400"></i>
+                            <span>Backup (JSON)</span>
+                        </button>
+                        <button id="btnImportPlaybook" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition">
+                            <i class="fa-solid fa-file-import text-[10px] text-amber-400"></i>
+                            <span>Restore Backup</span>
+                        </button>
+                        <input type="file" id="fileImportInput" accept=".json" class="hidden">
+                    </div>
+                    <button id="btnResetDefaults" class="px-2 py-1 rounded bg-slate-900 hover:bg-rose-950/50 text-slate-400 hover:text-rose-300 transition" title="Reset all plays to original 8U factory presets">
+                        <i class="fa-solid fa-arrows-rotate mr-1 text-[10px]"></i>Reset Defaults
+                    </button>
+                </div>
+
                 <!-- Formation and Play Meta -->
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Play Name</label>
-                        <input id="inputPlayName" type="text" value="Twins Right Slant & Wheel" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                        <input id="inputPlayName" type="text" value="Twins Slant & Fly" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
                     </div>
                     <div>
                         <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Formation</label>
@@ -245,7 +263,7 @@
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Tactical Whiteboard</span>
-                        <span class="text-[10px] text-emerald-400 font-mono"><i class="fa-solid fa-hand-pointer mr-1"></i>Interactive Field</span>
+                        <span class="text-[10px] text-emerald-400 font-mono"><i class="fa-solid fa-hand-pointer mr-1"></i>Drag to Realign</span>
                     </div>
                     <div class="relative w-full h-56 rounded-xl border border-emerald-900/60 whiteboard-bg overflow-hidden shadow-inner">
                         <canvas id="whiteboardCanvas" class="w-full h-full cursor-pointer"></canvas>
@@ -264,7 +282,7 @@
                             <span id="cfgPlayerBadge" class="w-6 h-6 rounded-full bg-pink-500 text-slate-950 font-black text-xs flex items-center justify-center">WR2</span>
                             <div>
                                 <h3 id="cfgPlayerName" class="text-xs font-bold text-white">Wide Receiver R (WR2)</h3>
-                                <p id="cfgPlayerCoord" class="text-[10px] text-emerald-400 font-mono">X: +15.0 yds, Depth: 0.0 yds</p>
+                                <p id="cfgPlayerCoord" class="text-[10px] text-emerald-400 font-mono">X: +12.5 yds, Depth: 0.0 yds</p>
                             </div>
                         </div>
                         <button id="btnSetPrimary" class="text-[11px] px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500 hover:text-slate-950 transition font-semibold">
@@ -309,10 +327,10 @@
                     <div class="mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 gap-3">
                         <div>
                             <label class="text-[10px] font-semibold text-slate-400 block mb-1">Route Depth / Break (Yds)</label>
-                            <input id="cfgDepthInput" type="range" min="3" max="20" step="1" value="7" class="w-full accent-blue-500 h-1.5 bg-slate-800 rounded">
+                            <input id="cfgDepthInput" type="range" min="3" max="20" step="1" value="8" class="w-full accent-blue-500 h-1.5 bg-slate-800 rounded">
                             <div class="flex justify-between text-[10px] text-slate-400">
                                 <span>3 yds</span>
-                                <span id="depthValText" class="text-blue-400 font-bold">7 yds</span>
+                                <span id="depthValText" class="text-blue-400 font-bold">8 yds</span>
                                 <span>20 yds</span>
                             </div>
                         </div>
@@ -358,10 +376,15 @@
             </div>
         </div>
     </main>
+
     <script>
         /* ==========================================================
            8U FLAG FOOTBALL PLAYMAKER - 3D ENGINE & PLAY LOGIC
            ========================================================== */
+
+        // Local Storage Keys for permanent persistence
+        const STORAGE_KEY_PLAYBOOK = 'flag_playmaker_playbook_8u_v1';
+        const STORAGE_KEY_CURRENT_PLAY_ID = 'flag_playmaker_active_play_8u_v1';
 
         // Audio synthesizer using Tone.js
         let synthWhistle, synthSnap, synthCatch;
@@ -464,7 +487,6 @@
         ];
 
         // Formations Pre-snap offsets (Standard 30-yd field: Sidelines at -15.0 and +15.0)
-        // Receivers align 2 to 3 yards inside sideline (at +/-12.0 to +/-12.5)
         const FORMATIONS = {
             twins_right: {
                 C:   { x: 0,     z: 0 },
@@ -508,28 +530,8 @@
             }
         };
 
-        // Active Play Configuration State
-        let currentPlay = {
-            id: "twins_cross",
-            name: "Twins Slant & Fly",
-            formation: "twins_right",
-            primaryTarget: "WR2",
-            passTiming: 2.2,
-            positions: JSON.parse(JSON.stringify(FORMATIONS.twins_right)),
-            players: {
-                QB:  { route: 'block', depth: 0, direction: 'center' },
-                C:   { route: 'curl', depth: 5, direction: 'center' },
-                RB:  { route: 'flat', depth: 3, direction: 'left' },
-                WR1: { route: 'go', depth: 16, direction: 'left' },
-                SLT: { route: 'in', depth: 7, direction: 'left' },
-                WR2: { route: 'slant', depth: 8, direction: 'left' }
-            },
-            defenseCoverage: 'cover2'
-        };
-
-        let selectedPlayerId = 'WR2';
-
-        const PLAY_PRESETS = {
+        // Factory defaults (preserved for resets)
+        const FACTORY_PRESETS = {
             twins_cross: {
                 id: 'twins_cross',
                 name: "Twins Slant & Fly",
@@ -600,12 +602,114 @@
             }
         };
 
+        // Active state
         let savedPlaybook = [
-            JSON.parse(JSON.stringify(PLAY_PRESETS.twins_cross)),
-            JSON.parse(JSON.stringify(PLAY_PRESETS.center_drag)),
-            JSON.parse(JSON.stringify(PLAY_PRESETS.hb_dive_jet)),
-            JSON.parse(JSON.stringify(PLAY_PRESETS.bunch_mesh))
+            JSON.parse(JSON.stringify(FACTORY_PRESETS.twins_cross)),
+            JSON.parse(JSON.stringify(FACTORY_PRESETS.center_drag)),
+            JSON.parse(JSON.stringify(FACTORY_PRESETS.hb_dive_jet)),
+            JSON.parse(JSON.stringify(FACTORY_PRESETS.bunch_mesh))
         ];
+
+        let currentPlay = JSON.parse(JSON.stringify(savedPlaybook[0]));
+        let selectedPlayerId = 'WR2';
+
+        /* ==========================================================
+           LOCAL STORAGE PERSISTENCE & BACKUP MANAGEMENT
+           ========================================================== */
+
+        function persistPlaybookToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY_PLAYBOOK, JSON.stringify(savedPlaybook));
+                if (currentPlay && currentPlay.id) {
+                    localStorage.setItem(STORAGE_KEY_CURRENT_PLAY_ID, currentPlay.id);
+                }
+            } catch (err) {
+                console.warn('Failed to save to localStorage:', err);
+            }
+        }
+
+        function loadPlaybookFromStorage() {
+            try {
+                const storedJSON = localStorage.getItem(STORAGE_KEY_PLAYBOOK);
+                if (storedJSON) {
+                    const parsed = JSON.parse(storedJSON);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        savedPlaybook = parsed;
+                    }
+                } else {
+                    persistPlaybookToStorage();
+                }
+
+                const lastActiveId = localStorage.getItem(STORAGE_KEY_CURRENT_PLAY_ID);
+                if (lastActiveId && savedPlaybook.some(p => p.id === lastActiveId)) {
+                    loadPlay(lastActiveId, false);
+                } else if (savedPlaybook.length > 0) {
+                    loadPlay(savedPlaybook[0].id, false);
+                }
+            } catch (err) {
+                console.warn('Failed to load from localStorage:', err);
+            }
+        }
+
+        function exportPlaybookToFile() {
+            try {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(savedPlaybook, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `flag_football_playbook_${new Date().toISOString().slice(0, 10)}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                showNotification("Playbook exported successfully as JSON!");
+            } catch(e) {
+                showNotification("Could not export playbook file");
+            }
+        }
+
+        function importPlaybookFromFile(evt) {
+            const file = evt.target.files && evt.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported) && imported.length > 0) {
+                        savedPlaybook = imported;
+                        persistPlaybookToStorage();
+                        loadPlay(savedPlaybook[0].id);
+                        updatePlaybookDropdown();
+                        showNotification(`Imported ${imported.length} plays successfully!`);
+                    } else {
+                        alert("Invalid playbook file format. Expected a JSON list of plays.");
+                    }
+                } catch(err) {
+                    alert("Error reading file: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+            evt.target.value = ''; // Reset file input
+        }
+
+        function restoreFactoryDefaults() {
+            if (!confirm("Are you sure you want to restore factory default plays? This will overwrite your current playbook.")) {
+                return;
+            }
+            savedPlaybook = [
+                JSON.parse(JSON.stringify(FACTORY_PRESETS.twins_cross)),
+                JSON.parse(JSON.stringify(FACTORY_PRESETS.center_drag)),
+                JSON.parse(JSON.stringify(FACTORY_PRESETS.hb_dive_jet)),
+                JSON.parse(JSON.stringify(FACTORY_PRESETS.bunch_mesh))
+            ];
+            persistPlaybookToStorage();
+            loadPlay(savedPlaybook[0].id);
+            updatePlaybookDropdown();
+            showNotification("Restored 8U factory default plays!");
+        }
+
+        /* ==========================================================
+           3D RENDERING & ASSET GENERATION
+           ========================================================== */
 
         function createPlayerMesh(role, number, colorHex, isDefense = false) {
             const group = new THREE.Group();
@@ -883,7 +987,7 @@
 
         // Strict boundary enforcement: Field width is 30 yds (-15 to +15), stay at least 1.8 yds inside
         function clampInBounds(x) {
-            return Math.max(-13.2, Math.min(13.2, x));
+            return Math.max(-13.0, Math.min(13.0, x));
         }
 
         function setPlayerFacing(mesh, targetX, targetZ) {
@@ -1056,12 +1160,8 @@
             });
         }
 
-        function renderQuickPlaybookList() {
-            // Refreshes preset buttons if available
-        }
-
-        function loadPlay(playId) {
-            const found = savedPlaybook.find(p => p.id === playId) || PLAY_PRESETS[playId];
+        function loadPlay(playId, showToast = true) {
+            const found = savedPlaybook.find(p => p.id === playId) || FACTORY_PRESETS[playId];
             if (found) {
                 currentPlay = JSON.parse(JSON.stringify(found));
                 if (!currentPlay.positions) {
@@ -1084,7 +1184,8 @@
                 updatePlaybookDropdown();
                 updateDesignerUI();
                 resetSimulation();
-                showNotification(`Loaded "${currentPlay.name}"`);
+                persistPlaybookToStorage();
+                if (showToast) showNotification(`Loaded "${currentPlay.name}"`);
             }
         }
 
@@ -1099,8 +1200,9 @@
             } else {
                 savedPlaybook.push(JSON.parse(JSON.stringify(currentPlay)));
             }
+            persistPlaybookToStorage();
             updatePlaybookDropdown();
-            showNotification(`Saved changes to "${currentPlay.name}"`);
+            showNotification(`Saved changes to "${currentPlay.name}"!`);
         }
 
         function savePlayAsNew() {
@@ -1115,6 +1217,7 @@
             const nameInput = document.getElementById('inputPlayName');
             if (nameInput) nameInput.value = newName;
 
+            persistPlaybookToStorage();
             updatePlaybookDropdown();
             updateHUDSummary();
             showNotification(`Created and saved "${newName}"`);
@@ -1146,6 +1249,7 @@
             const nameInput = document.getElementById('inputPlayName');
             if (nameInput) nameInput.value = newName;
 
+            persistPlaybookToStorage();
             updatePlaybookDropdown();
             updateDesignerUI();
             resetSimulation();
@@ -1159,6 +1263,7 @@
             }
             const nameToDelete = currentPlay.name;
             savedPlaybook = savedPlaybook.filter(p => p.id !== currentPlay.id);
+            persistPlaybookToStorage();
             loadPlay(savedPlaybook[0].id);
             showNotification(`Deleted "${nameToDelete}"`);
         }
@@ -1489,16 +1594,13 @@
             }
 
             const ballCarrier = passComplete ? targetReceiver : (handoffCompleted ? offensivePlayers['RB'] : null);
-            const ballLiveToPursue = handoffCompleted || ballInFlight || passComplete;
 
             // Defensive Realism Update:
-            // 1. Defenders do NOT converge on the primary target before the catch.
-            // 2. Zone defenders hold assigned sectors (flats, hooks, deep halves) and only break when ball enters their sector.
-            // 3. Man defenders strictly track their assigned player and ignore the other receivers.
-            // 4. All defenders pursue ONLY when a completion or handoff occurs.
+            // 1. Zone defenders hold assigned sectors (flats, hooks, deep halves) and only break when ball enters their sector.
+            // 2. Man defenders strictly track their assigned player and ignore the other receivers.
+            // 3. All defenders pursue ONLY when a completion or handoff occurs.
             defensivePlayers.forEach(d => {
                 let moved = false;
-                const prevPos = d.currentPos.clone();
 
                 if (ballCarrier) {
                     // Ball is caught or handed off: ALL defenders break and pursue the ball carrier to pull flags
@@ -1543,17 +1645,14 @@
                             moved = true;
                         }
                     } else {
-                        // Defenders on the opposite side of the field maintain discipline and do not charge across
                         setPlayerFacing(d.mesh, ballTargetPos.x, ballTargetPos.z);
                     }
                 } else {
                     // PRE-PASS / POCKET TIMING: Defenders strictly play authentic coverage
                     if (currentPlay.defenseCoverage === 'man') {
-                        // Pure Man-to-Man: Each defender mirrors THEIR OWN assigned receiver
                         let assignedRole = (d.id === 'CB1') ? 'WR1' : ((d.id === 'CB2') ? 'WR2' : ((d.id === 'MLB') ? 'SLT' : 'RB'));
                         
                         if (d.type === 'FS') {
-                            // Free Safety: Centerfield robber, shades toward strength of formation
                             const targetZ = d.basePos.z - Math.min(2.0, simTime * 0.5);
                             d.currentPos.z += (targetZ - d.currentPos.z) * 0.05;
                             d.currentPos.x += (-2.0 - d.currentPos.x) * 0.04;
@@ -1561,7 +1660,6 @@
                             setPlayerFacing(d.mesh, qbObj.currentPos.x, qbObj.currentPos.z);
                             moved = true;
                         } else if (d.type === 'SS') {
-                            // Strong Safety: Over-the-top support on twin/trips side
                             const targetZ = d.basePos.z - Math.min(2.0, simTime * 0.5);
                             d.currentPos.z += (targetZ - d.currentPos.z) * 0.05;
                             d.currentPos.x += (3.0 - d.currentPos.x) * 0.04;
@@ -1569,7 +1667,6 @@
                             setPlayerFacing(d.mesh, qbObj.currentPos.x, qbObj.currentPos.z);
                             moved = true;
                         } else {
-                            // Cornerbacks and Linebackers: Stick like glue to their assigned man
                             const assignedRec = offensivePlayers[assignedRole];
                             if (assignedRec) {
                                 const desiredZ = Math.min(-1.0, assignedRec.currentPos.z - 1.8);
@@ -1578,7 +1675,7 @@
                                 if (toTarget.length() > 0.25) {
                                     toTarget.normalize().multiplyScalar(0.06);
                                     d.currentPos.add(toTarget);
-                                    d.currentPos.z = Math.min(-0.6, d.currentPos.z); // Respect LOS
+                                    d.currentPos.z = Math.min(-0.6, d.currentPos.z);
                                     d.mesh.position.copy(d.currentPos);
                                     moved = true;
                                 }
@@ -1586,16 +1683,12 @@
                             }
                         }
                     } else if (currentPlay.defenseCoverage === 'contain') {
-                        // Short Contain: Wall off the boundaries and protect against jet sweeps and flats
                         const dropDepth = Math.min(1.5, simTime * 0.4);
                         d.currentPos.z = d.basePos.z - dropDepth;
                         d.mesh.position.copy(d.currentPos);
                         setPlayerFacing(d.mesh, qbObj.currentPos.x, qbObj.currentPos.z);
                     } else {
-                        // Cover 2 Zone drops:
-                        // CB1 & CB2: Underneath boundary flats (holding wide leverage)
-                        // MLB & ROV: Middle hook/curl zones (sitting 4-6 yards deep)
-                        // FS & SS: Deep halves (backpedaling to 14 yards)
+                        // Cover 2 Zone drops
                         if (d.type === 'FS' || d.type === 'SS') {
                             const backpedalAmount = Math.min(3.5, simTime * 0.85);
                             const targetZ = d.basePos.z - backpedalAmount;
@@ -1603,19 +1696,16 @@
                             d.mesh.position.copy(d.currentPos);
                             moved = true;
                         } else if (d.id === 'CB1') {
-                            // Left Flat
                             d.currentPos.x += (-11.5 - d.currentPos.x) * 0.04;
                             d.currentPos.z += (-4.5 - d.currentPos.z) * 0.04;
                             d.mesh.position.copy(d.currentPos);
                             moved = true;
                         } else if (d.id === 'CB2') {
-                            // Right Flat
                             d.currentPos.x += (11.5 - d.currentPos.x) * 0.04;
                             d.currentPos.z += (-4.5 - d.currentPos.z) * 0.04;
                             d.mesh.position.copy(d.currentPos);
                             moved = true;
                         } else {
-                            // Linebackers (MLB, ROV) drop to Hook-Curl
                             const hookDrop = Math.min(2.5, simTime * 0.6);
                             d.currentPos.z = d.basePos.z - hookDrop;
                             d.mesh.position.copy(d.currentPos);
@@ -1625,10 +1715,14 @@
                     }
                 }
 
-                // Animate running stride if moving, otherwise stand upright
                 animatePlayerStride(d.mesh, moved, simTime);
             });
         }
+
+        /* ==========================================================
+           TACTICAL WHITEBOARD (2D DESIGNER CANVAS)
+           ========================================================== */
+
         const wbCanvas = document.getElementById('whiteboardCanvas');
         const wbCtx = wbCanvas.getContext('2d');
 
@@ -1642,11 +1736,7 @@
         function worldToCanvas(x, z) {
             const w = wbCanvas.width;
             const h = wbCanvas.height;
-            // x: positive X is on the right (+), negative X is on the left (-). Field width is 30 yds in-bounds (-15 to 15)
             const cx = w / 2 + (x / 16.5) * (w * 0.44);
-            // z: 0 is LOS (placed at 62% of canvas height). 
-            // Downfield (-Z) goes UP towards top of whiteboard (opponent endzone). 
-            // Backfield (+Z) goes DOWN towards bottom of whiteboard (QB / RB backfield).
             const cy = h * 0.62 + (z / 20) * (h * 0.58);
             return { x: cx, y: cy };
         }
@@ -1854,13 +1944,11 @@
             const pt = getWhiteboardCoords(e);
             const wCoord = canvasToWorld(pt.x, pt.y);
 
-            // Enforce realistic in-bounds lateral limits: [-13.0, 13.0] (2 yds off sideline chalk)
             let clampedX = Math.max(-13.0, Math.min(13.0, Math.round(wCoord.x * 2) / 2));
-            // Backfield only: 0 to 6.5 yards behind LOS
             let clampedZ = Math.max(0.0, Math.min(6.5, Math.round(wCoord.z * 4) / 4));
 
             if (draggedPlayerRole === 'QB') {
-                clampedZ = Math.max(2.5, clampedZ); // Shotgun minimum
+                clampedZ = Math.max(2.5, clampedZ);
             }
 
             currentPlay.positions[draggedPlayerRole].x = clampedX;
@@ -2035,6 +2123,15 @@
         addSafeListener('btnNewPlayHeader', 'click', createNewPlay);
         addSafeListener('btnNewPlayModal', 'click', createNewPlay);
 
+        // Backup, Export, Import, and Reset Defaults listeners
+        addSafeListener('btnExportPlaybook', 'click', exportPlaybookToFile);
+        addSafeListener('btnImportPlaybook', 'click', () => {
+            const fileInput = document.getElementById('fileImportInput');
+            if (fileInput) fileInput.click();
+        });
+        addSafeListener('fileImportInput', 'change', importPlaybookFromFile);
+        addSafeListener('btnResetDefaults', 'click', restoreFactoryDefaults);
+
         addSafeListener('selectPlaybookItem', 'change', (e) => {
             loadPlay(e.target.value);
         });
@@ -2165,8 +2262,8 @@
         window.onload = function() {
             initAudio();
             initThreeScene();
+            loadPlaybookFromStorage();
             updatePlaybookDropdown();
-            renderQuickPlaybookList();
             updateFormationsAndRoutes();
             updateDesignerUI();
             resizeWhiteboard();
