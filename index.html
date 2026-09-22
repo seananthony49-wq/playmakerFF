@@ -1,0 +1,2177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8U Flag Football 3D Play Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            overflow: hidden;
+        }
+        .font-display {
+            font-family: 'Chakra Petch', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 9999px;
+        }
+        /* Canvas glowing border on active simulation */
+        .field-canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        /* Glassmorphic panels */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .whiteboard-bg {
+            background-color: #0f381e;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 0);
+            background-size: 16px 16px;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col">
+
+    <header class="h-16 bg-slate-900/90 border-b border-slate-800 px-4 flex items-center justify-between z-30 shrink-0 shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <i class="fa-solid fa-football text-slate-950 text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold font-display tracking-wide flex items-center gap-2">
+                    8U FLAG PLAYMAKER 3D
+                    <span class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">6v6 Edition</span>
+                </h1>
+                <p class="text-xs text-slate-400">Design 6-player plays & simulate in real-time 3D</p>
+            </div>
+        </div>
+
+        <!-- Simulation Quick Controls -->
+        <div class="flex items-center space-x-2">
+            <!-- Playbook Quick Selector & New Play -->
+            <div class="hidden md:flex items-center gap-1.5 mr-2">
+                <select id="selectPlaybookItem" class="bg-slate-800 border border-slate-700 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 max-w-[160px] truncate">
+                    <!-- Populated dynamically via JS -->
+                </select>
+                <button id="btnNewPlayHeader" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1 shadow transition active:scale-95" title="Create New Play">
+                    <i class="fa-solid fa-plus text-[10px]"></i>
+                    <span>New Play</span>
+                </button>
+            </div>
+
+            <button id="btnPlayPause" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-95">
+                <i id="playIcon" class="fa-solid fa-play"></i>
+                <span id="playText">RUN PLAY</span>
+            </button>
+            <button id="btnReset" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition border border-slate-700" title="Reset to Pre-Snap">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <div class="h-6 w-px bg-slate-700 mx-1"></div>
+            
+            <!-- Camera Selector -->
+            <div class="flex bg-slate-800/80 p-1 rounded-lg border border-slate-700 text-xs">
+                <button data-cam="sideline" class="cam-btn px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition active-cam bg-blue-600 text-white font-semibold">
+                    <i class="fa-solid fa-video mr-1"></i> Sideline
+                </button>
+                <button data-cam="qb" class="cam-btn px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition">
+                    <i class="fa-solid fa-helmet-safety mr-1"></i> QB POV
+                </button>
+                <button data-cam="top" class="cam-btn px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition">
+                    <i class="fa-solid fa-arrows-up-down-left-right mr-1"></i> All-22
+                </button>
+                <button data-cam="endzone" class="cam-btn px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-700 transition">
+                    <i class="fa-solid fa-crosshairs mr-1"></i> Endzone
+                </button>
+            </div>
+
+            <button id="btnToggleDesigner" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition text-cyan-400">
+                <i class="fa-solid fa-chalkboard-user"></i>
+                <span>Playbook Editor</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="relative flex-1 w-full h-full overflow-hidden">
+        <!-- 3D ThreeJS Canvas Container -->
+        <div id="threeContainer" class="field-canvas-container bg-slate-950"></div>
+
+        <!-- In-Field 3D Overlays & HUD -->
+        <div class="absolute top-4 left-4 pointer-events-none z-10 flex flex-col gap-2">
+            <div class="glass-panel rounded-xl p-3 px-4 shadow-xl border border-slate-700/60 max-w-sm pointer-events-auto">
+                <div class="flex items-center justify-between mb-1">
+                    <span id="displayPlayName" class="text-sm font-bold text-white tracking-wide">Twins Right Slant & Wheel</span>
+                    <span id="displayFormationBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">TWINS RIGHT</span>
+                </div>
+                <div class="text-xs text-slate-300 flex items-center justify-between mb-2">
+                    <span><i class="fa-solid fa-star text-amber-400 mr-1"></i> Target: <strong id="hudPrimaryTarget" class="text-amber-300">WR2 (Slant)</strong></span>
+                    <span class="text-slate-400"><i class="fa-solid fa-stopwatch text-emerald-400 mr-1"></i> <span id="hudThrowTiming">2.2s</span> throw</span>
+                </div>
+                <div id="hudRoutesSummary" class="grid grid-cols-3 gap-1 text-[10px] border-t border-slate-700/70 pt-2 font-mono">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+            <!-- Play Status Badge -->
+            <div id="statusBadge" class="hidden glass-panel px-4 py-2 rounded-xl text-xs font-bold text-center uppercase tracking-wider transition-all">
+                Snap Initiated
+            </div>
+        </div>
+
+        <!-- Simulation Progress & Playback Bar at Bottom -->
+        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 glass-panel rounded-2xl px-6 py-2.5 flex items-center space-x-4 border border-slate-700/80 shadow-2xl">
+            <span id="simTimeDisplay" class="text-xs font-mono font-semibold text-emerald-400 w-12">0.0s</span>
+            <input type="range" id="timeSlider" min="0" max="6.0" step="0.05" value="0" class="w-64 sm:w-80 md:w-96 accent-emerald-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg">
+            
+            <div class="flex items-center gap-1.5 pl-2 border-l border-slate-700">
+                <button id="btnSpeed" class="px-2 py-1 text-xs font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-300">1.0x</button>
+                <button id="btnAudioToggle" class="p-1.5 text-xs text-slate-400 hover:text-white rounded bg-slate-800 hover:bg-slate-700" title="Audio Toggle">
+                    <i id="audioIcon" class="fa-solid fa-volume-high"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Floating Quick Presets Bar -->
+        <div class="absolute top-4 right-4 z-10 hidden sm:flex flex-col gap-1.5 glass-panel p-2 rounded-xl border border-slate-700/60 max-w-xs">
+            <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase px-2">8U Recommended Plays</span>
+            <div class="flex flex-col gap-1">
+                <button onclick="loadPreset('twins_cross')" class="preset-btn text-left text-xs px-2.5 py-1.5 rounded-lg bg-slate-800/70 hover:bg-blue-600/50 hover:text-white text-slate-300 transition flex items-center justify-between">
+                    <span>Twins Slant & Fly</span>
+                    <i class="fa-solid fa-arrow-trend-up text-[10px] text-blue-400"></i>
+                </button>
+                <button onclick="loadPreset('center_drag')" class="preset-btn text-left text-xs px-2.5 py-1.5 rounded-lg bg-slate-800/70 hover:bg-blue-600/50 hover:text-white text-slate-300 transition flex items-center justify-between">
+                    <span>Center Sneak Drag</span>
+                    <i class="fa-solid fa-person-walking-arrow-right text-[10px] text-emerald-400"></i>
+                </button>
+                <button onclick="loadPreset('hb_dive_jet')" class="preset-btn text-left text-xs px-2.5 py-1.5 rounded-lg bg-slate-800/70 hover:bg-blue-600/50 hover:text-white text-slate-300 transition flex items-center justify-between">
+                    <span>Jet Sweep Run Option</span>
+                    <i class="fa-solid fa-wind text-[10px] text-amber-400"></i>
+                </button>
+                <button onclick="loadPreset('bunch_mesh')" class="preset-btn text-left text-xs px-2.5 py-1.5 rounded-lg bg-slate-800/70 hover:bg-blue-600/50 hover:text-white text-slate-300 transition flex items-center justify-between">
+                    <span>Bunch Cross & Corner</span>
+                    <i class="fa-solid fa-bezier-curve text-[10px] text-purple-400"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="designerModal" class="absolute inset-y-0 right-0 w-full sm:w-[540px] z-20 glass-panel border-l border-slate-700/80 shadow-2xl flex flex-col transition-transform duration-300 translate-x-0">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-pen-ruler text-emerald-400 text-lg"></i>
+                    <h2 class="font-bold text-sm tracking-wide text-white uppercase font-display">Offense Play Designer (6v6)</h2>
+                </div>
+                <button id="btnCloseDesigner" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Designer Body with 2D Pitch Canvas -->
+            <div class="p-4 flex-1 overflow-y-auto space-y-4">
+                
+                <!-- Playbook Actions Row: Save / Save As / New / Delete -->
+                <div class="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 flex items-center justify-between gap-1.5 flex-wrap">
+                    <div class="flex items-center gap-1">
+                        <button id="btnSavePlay" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 transition active:scale-95 shadow">
+                            <i class="fa-solid fa-floppy-disk text-xs"></i>
+                            <span>Save Changes</span>
+                        </button>
+                        <button id="btnSaveAsNew" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold rounded-lg text-xs flex items-center gap-1 transition">
+                            <i class="fa-solid fa-copy text-xs"></i>
+                            <span>Save As New</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button id="btnNewPlayModal" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1 transition">
+                            <i class="fa-solid fa-plus text-xs"></i>
+                            <span>New</span>
+                        </button>
+                        <button id="btnDeletePlay" class="p-1.5 bg-rose-950/40 hover:bg-rose-900/80 text-rose-300 border border-rose-800/60 rounded-lg text-xs transition" title="Delete Play">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Formation and Play Meta -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Play Name</label>
+                        <input id="inputPlayName" type="text" value="Twins Right Slant & Wheel" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Formation</label>
+                        <select id="selectFormation" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                            <option value="twins_right">Twins Right (2 WR, 1 Slot, 1 RB)</option>
+                            <option value="spread">Spread (2 WR Wide, 2 Slots)</option>
+                            <option value="trips_left">Trips Left (3 WR Overload)</option>
+                            <option value="bunch">Bunch Tight (Stack Red Zone)</option>
+                            <option value="i_form">Pistol / Heavy Run</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 6-Player Position Switcher Tabs -->
+                <div>
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider block mb-1.5 flex items-center justify-between">
+                        <span>Offense Roster (Select to Edit Route)</span>
+                        <span class="text-[10px] text-amber-400"><i class="fa-solid fa-star mr-0.5"></i> = Primary Read</span>
+                    </label>
+                    <div class="grid grid-cols-6 gap-1.5" id="rosterTabsContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- 2D Whiteboard Tactile Field -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Tactical Whiteboard</span>
+                        <span class="text-[10px] text-emerald-400 font-mono"><i class="fa-solid fa-hand-pointer mr-1"></i>Interactive Field</span>
+                    </div>
+                    <div class="relative w-full h-56 rounded-xl border border-emerald-900/60 whiteboard-bg overflow-hidden shadow-inner">
+                        <canvas id="whiteboardCanvas" class="w-full h-full cursor-pointer"></canvas>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-slate-400 px-1 mt-1">
+                        <span>LOS = Line of Scrimmage</span>
+                        <span class="text-amber-400 font-semibold">5-Yard Defense Buffer</span>
+                        <span class="text-amber-300">Gold Ring = Primary Target</span>
+                    </div>
+                </div>
+
+                <!-- Selected Player Route Editor -->
+                <div id="playerConfigCard" class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-2">
+                            <span id="cfgPlayerBadge" class="w-6 h-6 rounded-full bg-pink-500 text-slate-950 font-black text-xs flex items-center justify-center">WR2</span>
+                            <div>
+                                <h3 id="cfgPlayerName" class="text-xs font-bold text-white">Wide Receiver R (WR2)</h3>
+                                <p id="cfgPlayerCoord" class="text-[10px] text-emerald-400 font-mono">X: +15.0 yds, Depth: 0.0 yds</p>
+                            </div>
+                        </div>
+                        <button id="btnSetPrimary" class="text-[11px] px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500 hover:text-slate-950 transition font-semibold">
+                            ★ Set as Primary Target
+                        </button>
+                    </div>
+
+                    <!-- Manual Precision Sliders for Selected Player -->
+                    <div id="playerAlignSliders" class="p-2.5 mb-3 rounded-lg bg-slate-950/60 border border-slate-800 grid grid-cols-2 gap-3">
+                        <div>
+                            <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                                <span>Lateral (Left/Right)</span>
+                                <span id="valPlayerX" class="text-emerald-400 font-mono font-bold">+12.5 yds</span>
+                            </div>
+                            <input id="sliderPlayerX" type="range" min="-13" max="13" step="0.5" value="12.5" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                                <span>Backfield Depth (Z)</span>
+                                <span id="valPlayerZ" class="text-cyan-400 font-mono font-bold">0.0 yds</span>
+                            </div>
+                            <input id="sliderPlayerZ" type="range" min="0" max="6.5" step="0.5" value="0" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded">
+                        </div>
+                    </div>
+
+                    <!-- Route Selector Buttons -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Assigned Route / Action</label>
+                            <div class="flex items-center gap-1 text-[10px]">
+                                <span class="text-slate-400">Cut:</span>
+                                <button id="btnCutLeft" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Left</button>
+                                <button id="btnCutRight" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Right</button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-4 gap-1.5" id="routeSelectorGrid">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Cut Depth / Route Timing Slider -->
+                    <div class="mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-semibold text-slate-400 block mb-1">Route Depth / Break (Yds)</label>
+                            <input id="cfgDepthInput" type="range" min="3" max="20" step="1" value="7" class="w-full accent-blue-500 h-1.5 bg-slate-800 rounded">
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>3 yds</span>
+                                <span id="depthValText" class="text-blue-400 font-bold">7 yds</span>
+                                <span>20 yds</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-semibold text-slate-400 block mb-1">Pass Timing (Seconds)</label>
+                            <input id="cfgTimingInput" type="range" min="1.0" max="4.5" step="0.2" value="2.2" class="w-full accent-emerald-500 h-1.5 bg-slate-800 rounded">
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>1.0s (Quick)</span>
+                                <span id="timingValText" class="text-emerald-400 font-bold">2.2s</span>
+                                <span>4.5s</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Defense & Coach Settings -->
+                <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider block">Defensive Coverage Look</span>
+                        <span class="text-[10px] text-emerald-400 font-medium">8U Rule: No QB Rushing</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer bg-slate-800/80 p-2 rounded-lg border border-slate-700 hover:border-slate-500">
+                            <input type="radio" name="defCoverage" value="cover2" checked class="accent-rose-500">
+                            <span>Cover 2 Zone</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer bg-slate-800/80 p-2 rounded-lg border border-slate-700 hover:border-slate-500">
+                            <input type="radio" name="defCoverage" value="man" class="accent-rose-500">
+                            <span>Man-to-Man</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer bg-slate-800/80 p-2 rounded-lg border border-slate-700 hover:border-slate-500">
+                            <input type="radio" name="defCoverage" value="contain" class="accent-rose-500">
+                            <span>Short Contain</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Apply Button -->
+                <button id="btnApplyAndSimulate" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:opacity-95 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Apply & Simulate Play</span>
+                </button>
+            </div>
+        </div>
+    </main>
+    <script>
+        /* ==========================================================
+           8U FLAG FOOTBALL PLAYMAKER - 3D ENGINE & PLAY LOGIC
+           ========================================================== */
+
+        // Audio synthesizer using Tone.js
+        let synthWhistle, synthSnap, synthCatch;
+        let audioEnabled = true;
+
+        // Simulation parameters
+        let simRunning = false;
+        let simTime = 0.0;
+        let simSpeed = 1.0;
+        const SIM_MAX_TIME = 6.0;
+        let ballInFlight = false;
+        let ballThrown = false;
+        let passComplete = false;
+        let playCompleted = false;
+        let playTackled = false;
+        let throwStartTime = 0;
+        const throwDuration = 0.85;
+        let ballStartPos = new THREE.Vector3();
+        let ballTargetPos = new THREE.Vector3();
+
+        // 3D Scene globals
+        let scene, camera, renderer, controls;
+        let offensivePlayers = {};
+        let defensivePlayers = [];
+        let footballMesh;
+        let routesLineGroup;
+
+        function initAudio() {
+            try {
+                if (synthWhistle) return;
+                synthWhistle = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.02, decay: 0.1, sustain: 0.7, release: 0.3 }
+                }).toDestination();
+
+                synthSnap = new Tone.MembraneSynth({
+                    pitchDecay: 0.05,
+                    octaves: 4,
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.4 }
+                }).toDestination();
+
+                synthCatch = new Tone.NoiseSynth({
+                    noise: { type: 'white' },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0 }
+                }).toDestination();
+            } catch (e) {
+                console.warn('Tone.js audio failed to initialize:', e);
+            }
+        }
+
+        function playWhistle() {
+            if (!audioEnabled || !synthWhistle) return;
+            try {
+                Tone.start();
+                synthWhistle.triggerAttackRelease("B5", "8n", "+0.01");
+                setTimeout(() => { if (synthWhistle) synthWhistle.triggerAttackRelease("E6", "8n"); }, 120);
+            } catch(e){}
+        }
+
+        function playSnapSound() {
+            if (!audioEnabled || !synthSnap) return;
+            try {
+                Tone.start();
+                synthSnap.triggerAttackRelease("C2", "8n");
+            } catch(e){}
+        }
+
+        function playCatchSound() {
+            if (!audioEnabled || !synthCatch) return;
+            try {
+                Tone.start();
+                synthCatch.triggerAttackRelease("16n");
+            } catch(e){}
+        }
+
+        // Offense 6 players schema
+        const OFFENSIVE_ROLES = [
+            { id: 'QB',  name: 'Quarterback',    num: '12', color: '#06b6d4', desc: 'Takes snap, reads routes, passes or hands off' },
+            { id: 'C',   name: 'Center',         num: '50', color: '#10b981', desc: 'Snaps ball, eligible receiver on release' },
+            { id: 'RB',  name: 'Running Back',   num: '21', color: '#3b82f6', desc: 'Backfield carrier or flat receiver' },
+            { id: 'WR1', name: 'Wide Receiver L',num: '88', color: '#8b5cf6', desc: 'Split out left sideline' },
+            { id: 'SLT', name: 'Slot Receiver',  num: '11', color: '#f59e0b', desc: 'Lined up inside the numbers' },
+            { id: 'WR2', name: 'Wide Receiver R',num: '80', color: '#ec4899', desc: 'Split out right sideline' }
+        ];
+
+        // Standard Route Library tailored for 8U flag football
+        const ROUTE_TYPES = [
+            { id: 'slant',   name: 'Slant',    icon: 'fa-arrow-trend-up',  desc: '3 yds up, hard 45° cut inside' },
+            { id: 'go',      name: 'Go / Fly', icon: 'fa-arrow-up',        desc: 'Vertical streak down sideline' },
+            { id: 'out',     name: 'Quick Out',icon: 'fa-arrow-right',     desc: '5 yds up, 90° cut to boundary' },
+            { id: 'in',      name: 'Dig / In', icon: 'fa-arrow-left',      desc: '5-7 yds up, 90° cut across middle' },
+            { id: 'curl',    name: 'Curl/Hook',icon: 'fa-arrow-rotate-left',desc: '6 yds deep, turn back to QB' },
+            { id: 'flat',    name: 'Flat',     icon: 'fa-turn-down',       desc: 'Quick shallow cut to flat' },
+            { id: 'corner',  name: 'Corner',   icon: 'fa-up-right-from-square', desc: '7 yds up, 45° angle to pylon' },
+            { id: 'post',    name: 'Post',     icon: 'fa-up-left-from-square',  desc: '7 yds up, 45° angle to goalpost' },
+            { id: 'wheel',   name: 'Wheel',    icon: 'fa-route',           desc: 'Out to flat then up the sideline' },
+            { id: 'handoff', name: 'Handoff Dive', icon: 'fa-person-running', desc: 'Runs through A/B gap from QB' },
+            { id: 'block',   name: 'Screen / Set', icon: 'fa-shield-halved', desc: 'Set up for short catch or screen' }
+        ];
+
+        // Formations Pre-snap offsets (Standard 30-yd field: Sidelines at -15.0 and +15.0)
+        // Receivers align 2 to 3 yards inside sideline (at +/-12.0 to +/-12.5)
+        const FORMATIONS = {
+            twins_right: {
+                C:   { x: 0,     z: 0 },
+                QB:  { x: 0,     z: 4.0 },
+                RB:  { x: -3.0,  z: 4.5 },
+                WR1: { x: -12.0, z: 0 },
+                SLT: { x: 7.0,   z: 0.8 },
+                WR2: { x: 12.5,  z: 0 }
+            },
+            spread: {
+                C:   { x: 0,     z: 0 },
+                QB:  { x: 0,     z: 4.0 },
+                RB:  { x: -2.5,  z: 4.5 },
+                WR1: { x: -12.5, z: 0 },
+                SLT: { x: 7.5,   z: 0.8 },
+                WR2: { x: 12.5,  z: 0 }
+            },
+            trips_left: {
+                C:   { x: 0,     z: 0 },
+                QB:  { x: 0,     z: 4.0 },
+                RB:  { x: 3.0,   z: 4.5 },
+                WR1: { x: -12.5, z: 0 },
+                SLT: { x: -8.5,  z: 0.8 },
+                WR2: { x: -5.0,  z: 0.8 }
+            },
+            bunch: {
+                C:   { x: 0,     z: 0 },
+                QB:  { x: 0,     z: 4.0 },
+                RB:  { x: -2.5,  z: 4.5 },
+                WR1: { x: -12.0, z: 0 },
+                SLT: { x: 7.0,   z: 0.8 },
+                WR2: { x: 9.5,   z: 1.8 }
+            },
+            i_form: {
+                C:   { x: 0,     z: 0 },
+                QB:  { x: 0,     z: 3.0 },
+                RB:  { x: 0,     z: 5.5 },
+                WR1: { x: -11.5, z: 0 },
+                SLT: { x: 5.5,   z: 0.8 },
+                WR2: { x: 11.5,  z: 0 }
+            }
+        };
+
+        // Active Play Configuration State
+        let currentPlay = {
+            id: "twins_cross",
+            name: "Twins Slant & Fly",
+            formation: "twins_right",
+            primaryTarget: "WR2",
+            passTiming: 2.2,
+            positions: JSON.parse(JSON.stringify(FORMATIONS.twins_right)),
+            players: {
+                QB:  { route: 'block', depth: 0, direction: 'center' },
+                C:   { route: 'curl', depth: 5, direction: 'center' },
+                RB:  { route: 'flat', depth: 3, direction: 'left' },
+                WR1: { route: 'go', depth: 16, direction: 'left' },
+                SLT: { route: 'in', depth: 7, direction: 'left' },
+                WR2: { route: 'slant', depth: 8, direction: 'left' }
+            },
+            defenseCoverage: 'cover2'
+        };
+
+        let selectedPlayerId = 'WR2';
+
+        const PLAY_PRESETS = {
+            twins_cross: {
+                id: 'twins_cross',
+                name: "Twins Slant & Fly",
+                formation: "twins_right",
+                primaryTarget: "WR2",
+                passTiming: 2.2,
+                defenseCoverage: 'cover2',
+                positions: JSON.parse(JSON.stringify(FORMATIONS.twins_right)),
+                players: {
+                    QB:  { route: 'block', depth: 0, direction: 'center' },
+                    C:   { route: 'curl', depth: 5, direction: 'center' },
+                    RB:  { route: 'flat', depth: 3, direction: 'left' },
+                    WR1: { route: 'go', depth: 16, direction: 'left' },
+                    SLT: { route: 'in', depth: 7, direction: 'left' },
+                    WR2: { route: 'slant', depth: 8, direction: 'left' }
+                }
+            },
+            center_drag: {
+                id: 'center_drag',
+                name: "Center Sneak Drag",
+                formation: "spread",
+                primaryTarget: "C",
+                passTiming: 1.8,
+                defenseCoverage: 'cover2',
+                positions: JSON.parse(JSON.stringify(FORMATIONS.spread)),
+                players: {
+                    QB:  { route: 'block', depth: 0, direction: 'center' },
+                    C:   { route: 'in', depth: 4, direction: 'right' },
+                    RB:  { route: 'flat', depth: 3, direction: 'right' },
+                    WR1: { route: 'corner', depth: 12, direction: 'left' },
+                    SLT: { route: 'post', depth: 14, direction: 'right' },
+                    WR2: { route: 'go', depth: 16, direction: 'right' }
+                }
+            },
+            hb_dive_jet: {
+                id: 'hb_dive_jet',
+                name: "Jet Sweep Run Option",
+                formation: "i_form",
+                primaryTarget: "RB",
+                passTiming: 1.2,
+                defenseCoverage: 'contain',
+                positions: JSON.parse(JSON.stringify(FORMATIONS.i_form)),
+                players: {
+                    QB:  { route: 'handoff', depth: 0, direction: 'center' },
+                    C:   { route: 'block', depth: 1, direction: 'center' },
+                    RB:  { route: 'handoff', depth: 14, direction: 'right' },
+                    WR1: { route: 'go', depth: 15, direction: 'left' },
+                    SLT: { route: 'corner', depth: 9, direction: 'right' },
+                    WR2: { route: 'slant', depth: 7, direction: 'left' }
+                }
+            },
+            bunch_mesh: {
+                id: 'bunch_mesh',
+                name: "Bunch Cross & Corner",
+                formation: "bunch",
+                primaryTarget: "SLT",
+                passTiming: 2.4,
+                defenseCoverage: 'man',
+                positions: JSON.parse(JSON.stringify(FORMATIONS.bunch)),
+                players: {
+                    QB:  { route: 'block', depth: 0, direction: 'center' },
+                    C:   { route: 'curl', depth: 5, direction: 'center' },
+                    RB:  { route: 'wheel', depth: 10, direction: 'left' },
+                    WR1: { route: 'slant', depth: 8, direction: 'right' },
+                    SLT: { route: 'corner', depth: 10, direction: 'right' },
+                    WR2: { route: 'flat', depth: 3, direction: 'right' }
+                }
+            }
+        };
+
+        let savedPlaybook = [
+            JSON.parse(JSON.stringify(PLAY_PRESETS.twins_cross)),
+            JSON.parse(JSON.stringify(PLAY_PRESETS.center_drag)),
+            JSON.parse(JSON.stringify(PLAY_PRESETS.hb_dive_jet)),
+            JSON.parse(JSON.stringify(PLAY_PRESETS.bunch_mesh))
+        ];
+
+        function createPlayerMesh(role, number, colorHex, isDefense = false) {
+            const group = new THREE.Group();
+            group.userData = { role: role, number: number, isDefense: isDefense };
+
+            // Material palettes
+            const jerseyMat = new THREE.MeshLambertMaterial({ color: colorHex });
+            const pantsMat = new THREE.MeshLambertMaterial({ color: isDefense ? 0x1e293b : 0xffffff });
+            const skinMat = new THREE.MeshLambertMaterial({ color: 0xd4a373 });
+            const helmetMat = new THREE.MeshLambertMaterial({ color: isDefense ? 0x991b1b : 0x0284c7 });
+            const flagMat = new THREE.MeshLambertMaterial({ color: isDefense ? 0xfacc15 : 0xef4444 });
+
+            // Torso (Jersey)
+            const torsoGeo = new THREE.CylinderGeometry(0.35, 0.32, 0.72, 10);
+            const torso = new THREE.Mesh(torsoGeo, jerseyMat);
+            torso.position.y = 1.05;
+            group.add(torso);
+
+            // Number Badge Plate on chest and back
+            const numGeo = new THREE.PlaneGeometry(0.24, 0.24);
+            const numCanvas = document.createElement('canvas');
+            numCanvas.width = 64;
+            numCanvas.height = 64;
+            const nctx = numCanvas.getContext('2d');
+            nctx.fillStyle = '#ffffff';
+            nctx.font = 'bold 44px sans-serif';
+            nctx.textAlign = 'center';
+            nctx.textBaseline = 'middle';
+            nctx.fillText(number, 32, 34);
+
+            const numTex = new THREE.CanvasTexture(numCanvas);
+            const numMat = new THREE.MeshBasicMaterial({ map: numTex, transparent: true });
+            const numMeshFront = new THREE.Mesh(numGeo, numMat);
+            numMeshFront.position.set(0, 1.1, 0.36);
+            group.add(numMeshFront);
+
+            const numMeshBack = new THREE.Mesh(numGeo, numMat);
+            numMeshBack.position.set(0, 1.1, -0.36);
+            numMeshBack.rotation.y = Math.PI;
+            group.add(numMeshBack);
+
+            // Youth Helmet & Head
+            const headGeo = new THREE.SphereGeometry(0.24, 12, 12);
+            const head = new THREE.Mesh(headGeo, helmetMat);
+            head.position.y = 1.62;
+            group.add(head);
+
+            // Facemask
+            const maskGeo = new THREE.TorusGeometry(0.12, 0.02, 6, 12, Math.PI);
+            const maskMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
+            const mask = new THREE.Mesh(maskGeo, maskMat);
+            mask.position.set(0, 1.6, 0.2);
+            mask.rotation.x = Math.PI / 2;
+            group.add(mask);
+
+            // Flag Belt around waist
+            const beltGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.07, 10);
+            const beltMat = new THREE.MeshLambertMaterial({ color: 0x0f172a });
+            const belt = new THREE.Mesh(beltGeo, beltMat);
+            belt.position.y = 0.69;
+            group.add(belt);
+
+            // Left & Right Hanging Flags (8U Regulation Flags)
+            const flagGeo = new THREE.BoxGeometry(0.04, 0.44, 0.12);
+            const leftFlag = new THREE.Mesh(flagGeo, flagMat);
+            leftFlag.position.set(-0.38, 0.48, 0);
+            leftFlag.name = 'flagLeft';
+            group.add(leftFlag);
+
+            const rightFlag = new THREE.Mesh(flagGeo, flagMat);
+            rightFlag.position.set(0.38, 0.48, 0);
+            rightFlag.name = 'flagRight';
+            group.add(rightFlag);
+
+            // Limbs for animation
+            const limbMat = pantsMat;
+            const legGeo = new THREE.CylinderGeometry(0.1, 0.08, 0.66, 8);
+            
+            const leftLeg = new THREE.Mesh(legGeo, limbMat);
+            leftLeg.position.set(-0.16, 0.34, 0);
+            leftLeg.name = 'leftLeg';
+            group.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(legGeo, limbMat);
+            rightLeg.position.set(0.16, 0.34, 0);
+            rightLeg.name = 'rightLeg';
+            group.add(rightLeg);
+
+            const armGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.54, 8);
+            const leftArm = new THREE.Mesh(armGeo, skinMat);
+            leftArm.position.set(-0.42, 0.98, 0);
+            leftArm.name = 'leftArm';
+            group.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeo, skinMat);
+            rightArm.position.set(0.42, 0.98, 0);
+            rightArm.name = 'rightArm';
+            group.add(rightArm);
+
+            // Target Ring Indicator (Gold halo on turf)
+            const targetRingGeo = new THREE.RingGeometry(0.5, 0.68, 20);
+            const targetRingMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide });
+            const targetHalo = new THREE.Mesh(targetRingGeo, targetRingMat);
+            targetHalo.rotation.x = Math.PI / 2;
+            targetHalo.position.y = 0.04;
+            targetHalo.name = 'targetHalo';
+            targetHalo.visible = false;
+            group.add(targetHalo);
+
+            // Selected in Editor Halo
+            const selRingGeo = new THREE.RingGeometry(0.72, 0.85, 20);
+            const selRingMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide });
+            const selHalo = new THREE.Mesh(selRingGeo, selRingMat);
+            selHalo.rotation.x = Math.PI / 2;
+            selHalo.position.y = 0.035;
+            selHalo.name = 'selectedHalo';
+            selHalo.visible = false;
+            group.add(selHalo);
+
+            return group;
+        }
+
+        function initThreeScene() {
+            const container = document.getElementById('threeContainer');
+            if (!container) return;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0f1d);
+
+            camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 200);
+            setCameraView('endzone');
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.maxPolarAngle = Math.PI / 2.05;
+            controls.target.set(0, 1.0, -3.0);
+
+            // Lights
+            const ambient = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+            sun.position.set(20, 40, 25);
+            scene.add(sun);
+
+            const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.4);
+            fillLight.position.set(-20, 20, -25);
+            scene.add(fillLight);
+
+            // Realistic Field Turf (50 yards x 30 yards)
+            const turfGeo = new THREE.PlaneGeometry(36, 60);
+            const turfMat = new THREE.MeshLambertMaterial({ color: 0x166534 });
+            const turf = new THREE.Mesh(turfGeo, turfMat);
+            turf.rotation.x = -Math.PI / 2;
+            scene.add(turf);
+
+            // Field Chalk Markings Canvas Texture
+            const fieldCanvas = document.createElement('canvas');
+            fieldCanvas.width = 1024;
+            fieldCanvas.height = 2048;
+            const fctx = fieldCanvas.getContext('2d');
+
+            // Grass Alternating Mower Patterns
+            for (let i = 0; i < 20; i++) {
+                fctx.fillStyle = (i % 2 === 0) ? '#166534' : '#15803d';
+                fctx.fillRect(0, i * 102.4, 1024, 102.4);
+            }
+
+            // Sidelines (In-bounds is lateral -15 to +15 yds)
+            fctx.strokeStyle = '#ffffff';
+            fctx.lineWidth = 14;
+            fctx.strokeRect(90, 80, 844, 1888);
+
+            // Line of Scrimmage (Z = 0, placed at center)
+            const centerY = 1024;
+            fctx.strokeStyle = '#38bdf8'; // Glowing Blue LOS
+            fctx.lineWidth = 18;
+            fctx.beginPath();
+            fctx.moveTo(90, centerY);
+            fctx.lineTo(934, centerY);
+            fctx.stroke();
+
+            // 5-Yard Defense Buffer Line (Z = -5)
+            const bufferY = centerY - 160;
+            fctx.strokeStyle = '#facc15'; // Yellow 5-Yd Buffer
+            fctx.setLineDash([20, 20]);
+            fctx.beginPath();
+            fctx.moveTo(90, bufferY);
+            fctx.lineTo(934, bufferY);
+            fctx.stroke();
+            fctx.setLineDash([]);
+
+            // Yard Markers
+            fctx.strokeStyle = '#ffffff';
+            fctx.lineWidth = 8;
+            for (let y = centerY - 640; y <= centerY + 640; y += 160) {
+                if (y !== centerY && y !== bufferY) {
+                    fctx.beginPath();
+                    fctx.moveTo(90, y);
+                    fctx.lineTo(934, y);
+                    fctx.stroke();
+                }
+            }
+
+            const fieldTex = new THREE.CanvasTexture(fieldCanvas);
+            const markingsGeo = new THREE.PlaneGeometry(30, 60);
+            const markingsMat = new THREE.MeshBasicMaterial({ map: fieldTex, transparent: true, opacity: 0.95 });
+            const markingsMesh = new THREE.Mesh(markingsGeo, markingsMat);
+            markingsMesh.rotation.x = -Math.PI / 2;
+            markingsMesh.position.y = 0.01;
+            scene.add(markingsMesh);
+
+            // Group for 3D trajectory lines
+            routesLineGroup = new THREE.Group();
+            scene.add(routesLineGroup);
+
+            // Regulation Youth Leather Football
+            const ballGeo = new THREE.SphereGeometry(0.18, 12, 10);
+            ballGeo.scale(1.0, 1.45, 1.0);
+            const ballMat = new THREE.MeshLambertMaterial({ color: 0x854d0e });
+            footballMesh = new THREE.Mesh(ballGeo, ballMat);
+            scene.add(footballMesh);
+
+            // White laces on ball
+            const laceGeo = new THREE.BoxGeometry(0.04, 0.22, 0.02);
+            const laceMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const lace = new THREE.Mesh(laceGeo, laceMat);
+            lace.position.set(0, 0, 0.17);
+            footballMesh.add(lace);
+
+            // Spawn 6 Offensive Players
+            OFFENSIVE_ROLES.forEach(r => {
+                const mesh = createPlayerMesh(r.id, r.num, r.color, false);
+                scene.add(mesh);
+                offensivePlayers[r.id] = {
+                    id: r.id,
+                    mesh: mesh,
+                    startPos: new THREE.Vector3(),
+                    currentPos: new THREE.Vector3(),
+                    waypoints: []
+                };
+            });
+
+            // Spawn 6 Defensive Players (Inside the numbers with 2-3 yds sideline cushion, 5-yd buffer)
+            const DEF_ROLES = [
+                { id: 'CB1', type: 'CB', num: '24', pos: new THREE.Vector3(-11.5, 0, -5.0) },
+                { id: 'CB2', type: 'CB', num: '22', pos: new THREE.Vector3(11.5, 0, -5.0) },
+                { id: 'MLB', type: 'MLB',num: '54', pos: new THREE.Vector3(-1.5, 0, -5.5) },
+                { id: 'ROV', type: 'ROV',num: '31', pos: new THREE.Vector3(2.5, 0, -5.0) },
+                { id: 'FS',  type: 'FS', num: '29', pos: new THREE.Vector3(-5.5, 0, -11.0) },
+                { id: 'SS',  type: 'SS', num: '33', pos: new THREE.Vector3(5.5, 0, -11.0) }
+            ];
+
+            defensivePlayers = DEF_ROLES.map(d => {
+                const mesh = createPlayerMesh(d.type, d.num, 0xdc2626, true);
+                scene.add(mesh);
+                return {
+                    id: d.id,
+                    type: d.type,
+                    mesh: mesh,
+                    defaultPos: d.pos.clone(),
+                    basePos: d.pos.clone(),
+                    currentPos: d.pos.clone(),
+                    tackled: false
+                };
+            });
+        }
+
+        // Strict boundary enforcement: Field width is 30 yds (-15 to +15), stay at least 1.8 yds inside
+        function clampInBounds(x) {
+            return Math.max(-13.2, Math.min(13.2, x));
+        }
+
+        function setPlayerFacing(mesh, targetX, targetZ) {
+            const dx = targetX - mesh.position.x;
+            const dz = targetZ - mesh.position.z;
+            if (Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001) {
+                const angle = Math.atan2(dx, dz);
+                mesh.rotation.set(0, angle, 0);
+            }
+        }
+
+        function animatePlayerStride(mesh, isMoving, time, freq = 14) {
+            const leftLeg = mesh.getObjectByName('leftLeg');
+            const rightLeg = mesh.getObjectByName('rightLeg');
+            const leftArm = mesh.getObjectByName('leftArm');
+            const rightArm = mesh.getObjectByName('rightArm');
+            const flagL = mesh.getObjectByName('flagLeft');
+            const flagR = mesh.getObjectByName('flagRight');
+
+            if (!leftLeg || !rightLeg) return;
+
+            if (isMoving) {
+                const legSwing = Math.sin(time * freq) * 0.45;
+                leftLeg.rotation.x = legSwing;
+                rightLeg.rotation.x = -legSwing;
+                if (leftArm) leftArm.rotation.x = -legSwing * 0.8;
+                if (rightArm) rightArm.rotation.x = legSwing * 0.8;
+                if (flagL) flagL.rotation.z = Math.sin(time * 20) * 0.2;
+                if (flagR) flagR.rotation.z = -Math.sin(time * 20) * 0.2;
+            } else {
+                leftLeg.rotation.x = 0;
+                rightLeg.rotation.x = 0;
+                if (leftArm) leftArm.rotation.x = 0;
+                if (rightArm) rightArm.rotation.x = 0;
+                if (flagL) flagL.rotation.z = 0;
+                if (flagR) flagR.rotation.z = 0;
+            }
+        }
+
+        function setCameraView(camType) {
+            document.querySelectorAll('.cam-btn').forEach(b => {
+                b.classList.remove('bg-blue-600', 'text-white', 'font-semibold');
+                b.classList.add('text-slate-300');
+                if (b.getAttribute('data-cam') === camType) {
+                    b.classList.add('bg-blue-600', 'text-white', 'font-semibold');
+                    b.classList.remove('text-slate-300');
+                }
+            });
+
+            if (!camera) return;
+
+            if (camType === 'sideline') {
+                camera.position.set(24, 14, 0);
+                if (controls) controls.target.set(0, 1.2, -3);
+            } else if (camType === 'top') {
+                camera.position.set(0, 36, -3);
+                if (controls) controls.target.set(0, 0, -3.1);
+            } else if (camType === 'qb') {
+                const qbPos = offensivePlayers['QB'] ? offensivePlayers['QB'].startPos : new THREE.Vector3(0, 0, 4);
+                camera.position.set(qbPos.x, 2.2, qbPos.z + 1.8);
+                if (controls) controls.target.set(0, 1.2, -10);
+            } else {
+                // Endzone / Coach POV looking directly downfield
+                camera.position.set(0, 15, 18);
+                if (controls) controls.target.set(0, 1.2, -6);
+            }
+            if (controls) controls.update();
+        }
+
+        function generateRouteWaypoints(roleId, startPos, routeConf) {
+            const waypoints = [startPos.clone()];
+            const depth = routeConf.depth || 7;
+            const dir = (routeConf.direction === 'right') ? 1 : -1;
+            const rType = routeConf.route || 'go';
+
+            if (roleId === 'QB') {
+                if (rType === 'handoff') {
+                    waypoints.push(new THREE.Vector3(startPos.x, 0, startPos.z - 0.4));
+                } else {
+                    waypoints.push(new THREE.Vector3(startPos.x, 0, startPos.z + 1.2));
+                }
+                return waypoints;
+            }
+
+            if (rType === 'go') {
+                waypoints.push(new THREE.Vector3(startPos.x, 0, -depth));
+            } else if (rType === 'slant') {
+                const breakZ = Math.min(-2.5, startPos.z - 3);
+                waypoints.push(new THREE.Vector3(startPos.x, 0, breakZ));
+                waypoints.push(new THREE.Vector3(clampInBounds(startPos.x + dir * depth * 0.9), 0, breakZ - depth * 0.7));
+            } else if (rType === 'out') {
+                const stemZ = -depth;
+                waypoints.push(new THREE.Vector3(startPos.x, 0, stemZ));
+                waypoints.push(new THREE.Vector3(clampInBounds(startPos.x + dir * 6.5), 0, stemZ));
+            } else if (rType === 'in') {
+                const stemZ = -depth;
+                waypoints.push(new THREE.Vector3(startPos.x, 0, stemZ));
+                waypoints.push(new THREE.Vector3(clampInBounds(startPos.x - dir * 7.5), 0, stemZ));
+            } else if (rType === 'curl') {
+                const stemZ = -depth;
+                waypoints.push(new THREE.Vector3(startPos.x, 0, stemZ));
+                waypoints.push(new THREE.Vector3(startPos.x, 0, stemZ + 1.8));
+            } else if (rType === 'flat') {
+                const flatZ = Math.min(-1.5, startPos.z - 1.5);
+                waypoints.push(new THREE.Vector3(clampInBounds(startPos.x + dir * 5.5), 0, flatZ));
+            } else if (rType === 'corner') {
+                const stemZ = -depth;
+                waypoints.push(new THREE.Vector3(startPos.x, 0, stemZ));
+                waypoints.push(new THREE.Vector3(clampInBounds(startPos.x + dir * 7), 0, stemZ - 6));
+            } else if (rType === 'post') {
+                const stemZ = -depth;
+                waypoints.push(new THREE.Vector3(startPos.x, 0, stemZ));
+                waypoints.push(new THREE.Vector3(clampInBounds(startPos.x - dir * 7), 0, stemZ - 7));
+            } else if (rType === 'wheel') {
+                waypoints.push(new THREE.Vector3(clampInBounds(startPos.x + dir * 4.5), 0, startPos.z - 1.5));
+                waypoints.push(new THREE.Vector3(clampInBounds(startPos.x + dir * 5.2), 0, -depth));
+            } else if (rType === 'handoff') {
+                waypoints.push(new THREE.Vector3(startPos.x * 0.4, 0, 3.8));
+                waypoints.push(new THREE.Vector3(clampInBounds(dir * 5.0), 0, -depth));
+            } else {
+                waypoints.push(new THREE.Vector3(startPos.x, 0, Math.min(-0.8, startPos.z - 1.2)));
+            }
+
+            return waypoints;
+        }
+
+        function render3DRoutesOnField() {
+            if (!routesLineGroup) return;
+            while (routesLineGroup.children.length > 0) {
+                const obj = routesLineGroup.children[0];
+                routesLineGroup.remove(obj);
+            }
+
+            OFFENSIVE_ROLES.forEach(r => {
+                const pObj = offensivePlayers[r.id];
+                if (!pObj || !pObj.waypoints || pObj.waypoints.length < 2) return;
+
+                const isTarget = (r.id === currentPlay.primaryTarget);
+                const colorHex = isTarget ? 0xf59e0b : 0x38bdf8;
+
+                const pts = pObj.waypoints.map(p => new THREE.Vector3(p.x, 0.04, p.z));
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+                const lineMat = new THREE.LineBasicMaterial({
+                    color: colorHex,
+                    linewidth: isTarget ? 3 : 2
+                });
+                const line = new THREE.Line(lineGeo, lineMat);
+                routesLineGroup.add(line);
+
+                // Target end point beacon
+                const lastPt = pts[pts.length - 1];
+                const markerGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.04, 12);
+                const markerMat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const marker = new THREE.Mesh(markerGeo, markerMat);
+                marker.position.set(lastPt.x, 0.04, lastPt.z);
+                routesLineGroup.add(marker);
+            });
+        }
+
+        function updatePlaybookDropdown() {
+            const dropdown = document.getElementById('selectPlaybookItem');
+            if (!dropdown) return;
+            dropdown.innerHTML = '';
+            savedPlaybook.forEach(play => {
+                const opt = document.createElement('option');
+                opt.value = play.id;
+                opt.text = play.name;
+                if (play.id === currentPlay.id) opt.selected = true;
+                dropdown.appendChild(opt);
+            });
+        }
+
+        function renderQuickPlaybookList() {
+            // Refreshes preset buttons if available
+        }
+
+        function loadPlay(playId) {
+            const found = savedPlaybook.find(p => p.id === playId) || PLAY_PRESETS[playId];
+            if (found) {
+                currentPlay = JSON.parse(JSON.stringify(found));
+                if (!currentPlay.positions) {
+                    const defaultPos = FORMATIONS[currentPlay.formation] || FORMATIONS.twins_right;
+                    currentPlay.positions = JSON.parse(JSON.stringify(defaultPos));
+                }
+                selectedPlayerId = currentPlay.primaryTarget || 'WR2';
+
+                const nameInput = document.getElementById('inputPlayName');
+                if (nameInput) nameInput.value = currentPlay.name;
+
+                const formSelect = document.getElementById('selectFormation');
+                if (formSelect) formSelect.value = currentPlay.formation;
+
+                const defRadios = document.querySelectorAll('input[name="defCoverage"]');
+                defRadios.forEach(r => {
+                    r.checked = (r.value === currentPlay.defenseCoverage);
+                });
+
+                updatePlaybookDropdown();
+                updateDesignerUI();
+                resetSimulation();
+                showNotification(`Loaded "${currentPlay.name}"`);
+            }
+        }
+
+        function loadPreset(key) {
+            loadPlay(key);
+        }
+
+        function saveCurrentPlayChanges() {
+            const idx = savedPlaybook.findIndex(p => p.id === currentPlay.id);
+            if (idx >= 0) {
+                savedPlaybook[idx] = JSON.parse(JSON.stringify(currentPlay));
+            } else {
+                savedPlaybook.push(JSON.parse(JSON.stringify(currentPlay)));
+            }
+            updatePlaybookDropdown();
+            showNotification(`Saved changes to "${currentPlay.name}"`);
+        }
+
+        function savePlayAsNew() {
+            const newName = prompt("Enter a name for the new play:", `${currentPlay.name} (Copy)`);
+            if (!newName) return;
+            const newPlay = JSON.parse(JSON.stringify(currentPlay));
+            newPlay.id = 'play_' + Date.now();
+            newPlay.name = newName;
+            currentPlay = newPlay;
+            savedPlaybook.push(newPlay);
+
+            const nameInput = document.getElementById('inputPlayName');
+            if (nameInput) nameInput.value = newName;
+
+            updatePlaybookDropdown();
+            updateHUDSummary();
+            showNotification(`Created and saved "${newName}"`);
+        }
+
+        function createNewPlay() {
+            const newName = prompt("Enter play name:", "Custom Play 6v6");
+            if (!newName) return;
+            const newId = 'play_' + Date.now();
+            currentPlay = {
+                id: newId,
+                name: newName,
+                formation: 'twins_right',
+                primaryTarget: 'WR2',
+                passTiming: 2.2,
+                defenseCoverage: 'cover2',
+                positions: JSON.parse(JSON.stringify(FORMATIONS.twins_right)),
+                players: {
+                    QB:  { route: 'block', depth: 0, direction: 'center' },
+                    C:   { route: 'flat', depth: 4, direction: 'left' },
+                    RB:  { route: 'wheel', depth: 8, direction: 'left' },
+                    WR1: { route: 'go', depth: 16, direction: 'left' },
+                    SLT: { route: 'in', depth: 6, direction: 'left' },
+                    WR2: { route: 'slant', depth: 7, direction: 'left' }
+                }
+            };
+            savedPlaybook.push(JSON.parse(JSON.stringify(currentPlay)));
+
+            const nameInput = document.getElementById('inputPlayName');
+            if (nameInput) nameInput.value = newName;
+
+            updatePlaybookDropdown();
+            updateDesignerUI();
+            resetSimulation();
+            showNotification(`Created "${newName}"`);
+        }
+
+        function deleteCurrentPlay() {
+            if (savedPlaybook.length <= 1) {
+                showNotification("Cannot delete the only play in your playbook!");
+                return;
+            }
+            const nameToDelete = currentPlay.name;
+            savedPlaybook = savedPlaybook.filter(p => p.id !== currentPlay.id);
+            loadPlay(savedPlaybook[0].id);
+            showNotification(`Deleted "${nameToDelete}"`);
+        }
+
+        function renderRosterTabs() {
+            const container = document.getElementById('rosterTabsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            OFFENSIVE_ROLES.forEach(r => {
+                const isSelected = (r.id === selectedPlayerId);
+                const isPrimary = (r.id === currentPlay.primaryTarget);
+                const conf = currentPlay.players[r.id] || {};
+
+                const tab = document.createElement('button');
+                tab.className = `p-1.5 rounded-lg border text-center transition flex flex-col items-center gap-0.5 ${
+                    isSelected ? 'bg-blue-600 text-white border-blue-400 shadow-md ring-2 ring-blue-500/50' : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500'
+                }`;
+
+                tab.innerHTML = `
+                    <div class="flex items-center gap-0.5">
+                        <span class="text-xs font-black">${r.id}</span>
+                        ${isPrimary ? '<i class="fa-solid fa-star text-[9px] text-amber-400"></i>' : ''}
+                    </div>
+                    <span class="text-[9px] truncate w-full text-slate-400">${conf.route || 'go'}</span>
+                `;
+
+                tab.onclick = () => {
+                    selectedPlayerId = r.id;
+                    updateDesignerUI();
+                    updateFormationsAndRoutes();
+                };
+
+                container.appendChild(tab);
+            });
+        }
+
+        function renderRouteSelectorGrid() {
+            const grid = document.getElementById('routeSelectorGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const pConf = currentPlay.players[selectedPlayerId] || { route: 'go' };
+
+            ROUTE_TYPES.forEach(rt => {
+                const isActive = (pConf.route === rt.id);
+                const btn = document.createElement('button');
+                btn.className = `route-opt-btn p-2 rounded-lg text-xs font-semibold border flex flex-col items-center gap-1 transition ${
+                    isActive ? 'bg-blue-600 text-white border-blue-400 shadow' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                }`;
+                btn.dataset.route = rt.id;
+                btn.innerHTML = `
+                    <i class="fa-solid ${rt.icon} text-sm"></i>
+                    <span class="text-[10px]">${rt.name}</span>
+                `;
+
+                btn.onclick = () => {
+                    if (currentPlay.players[selectedPlayerId]) {
+                        currentPlay.players[selectedPlayerId].route = rt.id;
+                        updatePlayerConfigCard();
+                        renderRosterTabs();
+                        updateFormationsAndRoutes();
+                    }
+                };
+
+                grid.appendChild(btn);
+            });
+        }
+
+        function updateFormationsAndRoutes() {
+            if (!currentPlay.positions) {
+                const formOffsets = FORMATIONS[currentPlay.formation] || FORMATIONS.twins_right;
+                currentPlay.positions = JSON.parse(JSON.stringify(formOffsets));
+            }
+
+            OFFENSIVE_ROLES.forEach(r => {
+                const off = currentPlay.positions[r.id] || { x: 0, z: 0 };
+                const pObj = offensivePlayers[r.id];
+                pObj.startPos.set(off.x, 0, off.z);
+                pObj.currentPos.copy(pObj.startPos);
+                pObj.mesh.position.copy(pObj.startPos);
+                pObj.mesh.rotation.set(0, Math.PI, 0);
+
+                const halo = pObj.mesh.getObjectByName('targetHalo');
+                if (halo) halo.visible = (r.id === currentPlay.primaryTarget);
+
+                const selHalo = pObj.mesh.getObjectByName('selectedHalo');
+                if (selHalo) selHalo.visible = (r.id === selectedPlayerId);
+
+                const rConf = currentPlay.players[r.id] || { route: 'go', depth: 8, direction: 'left' };
+                pObj.waypoints = generateRouteWaypoints(r.id, pObj.startPos, rConf);
+                animatePlayerStride(pObj.mesh, false, 0);
+            });
+
+            // Set Defense based on chosen coverage (5-yard buffer, no rush, inside boundary cushion)
+            defensivePlayers.forEach((d) => {
+                let base = d.defaultPos.clone();
+                if (currentPlay.defenseCoverage === 'contain') {
+                    if (d.type === 'LB') base.set(-2.0, 0, -4.5);
+                    else if (d.type === 'ROV') base.set(2.0, 0, -4.5);
+                    else if (d.type === 'FS') base.set(-5.5, 0, -11.0);
+                    else if (d.type === 'SS') base.set(5.5, 0, -11.0);
+                    else if (d.id === 'CB1') base.set(-11.0, 0, -4.5);
+                    else if (d.id === 'CB2') base.set(11.0, 0, -4.5);
+                } else if (currentPlay.defenseCoverage === 'man') {
+                    // Match up with outside-in leverage relative to assigned receivers
+                    if (d.id === 'CB1') {
+                        const wr1Pos = offensivePlayers['WR1'].startPos;
+                        base.set(clampInBounds(wr1Pos.x * 0.92), 0, -5.0);
+                    } else if (d.id === 'CB2') {
+                        const wr2Pos = offensivePlayers['WR2'].startPos;
+                        base.set(clampInBounds(wr2Pos.x * 0.92), 0, -5.0);
+                    } else if (d.id === 'MLB') {
+                        const sltPos = offensivePlayers['SLT'].startPos;
+                        base.set(clampInBounds(sltPos.x * 0.85), 0, -5.0);
+                    } else if (d.id === 'ROV') {
+                        const rbPos = offensivePlayers['RB'].startPos;
+                        base.set(clampInBounds(rbPos.x * 0.85), 0, -5.0);
+                    } else if (d.id === 'FS') {
+                        base.set(-5.0, 0, -11.5);
+                    } else if (d.id === 'SS') {
+                        base.set(5.0, 0, -11.5);
+                    }
+                }
+
+                d.basePos.copy(base);
+                d.currentPos.copy(base);
+                d.mesh.position.copy(base);
+                d.mesh.rotation.set(0, 0, 0); // Stand upright, facing offense (+Z)
+                d.tackled = false;
+                animatePlayerStride(d.mesh, false, 0);
+            });
+
+            // Center holds ball at Line of Scrimmage
+            const centerPos = offensivePlayers['C'].startPos;
+            footballMesh.position.set(centerPos.x, 0.25, centerPos.z);
+            footballMesh.visible = true;
+            footballMesh.rotation.set(0, 0, 0);
+
+            render3DRoutesOnField();
+            drawWhiteboard();
+            updateHUDSummary();
+        }
+
+        function updateHUDSummary() {
+            document.getElementById('displayPlayName').innerText = currentPlay.name;
+            document.getElementById('displayFormationBadge').innerText = currentPlay.formation.replace('_', ' ').toUpperCase();
+            
+            const targetRec = offensivePlayers[currentPlay.primaryTarget];
+            const targetConf = currentPlay.players[currentPlay.primaryTarget] || {};
+            document.getElementById('hudPrimaryTarget').innerText = `${currentPlay.primaryTarget} (${targetConf.route || 'Pass'})`;
+            document.getElementById('hudThrowTiming').innerText = `${currentPlay.passTiming.toFixed(1)}s`;
+
+            const summaryContainer = document.getElementById('hudRoutesSummary');
+            if (summaryContainer) {
+                summaryContainer.innerHTML = '';
+                OFFENSIVE_ROLES.forEach(r => {
+                    const conf = currentPlay.players[r.id] || {};
+                    const isTarget = (r.id === currentPlay.primaryTarget);
+                    const tag = document.createElement('div');
+                    tag.className = `px-1.5 py-0.5 rounded border ${isTarget ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold' : 'bg-slate-800/80 text-slate-300 border-slate-700/60'}`;
+                    tag.innerText = `${r.id}: ${conf.route || 'go'}`;
+                    summaryContainer.appendChild(tag);
+                });
+            }
+        }
+
+        function resetSimulation() {
+            simRunning = false;
+            simTime = 0.0;
+            ballInFlight = false;
+            ballThrown = false;
+            passComplete = false;
+            playCompleted = false;
+            playTackled = false;
+
+            document.getElementById('playIcon').className = 'fa-solid fa-play';
+            document.getElementById('playText').innerText = 'RUN PLAY';
+            document.getElementById('statusBadge').classList.add('hidden');
+            document.getElementById('timeSlider').value = 0;
+            document.getElementById('simTimeDisplay').innerText = '0.0s';
+
+            updateFormationsAndRoutes();
+        }
+
+        function toggleSimulation() {
+            if (simRunning) {
+                simRunning = false;
+                document.getElementById('playIcon').className = 'fa-solid fa-play';
+                document.getElementById('playText').innerText = 'RESUME';
+            } else {
+                if (simTime >= SIM_MAX_TIME || playCompleted) {
+                    resetSimulation();
+                }
+                simRunning = true;
+                document.getElementById('playIcon').className = 'fa-solid fa-pause';
+                document.getElementById('playText').innerText = 'PAUSE';
+                playSnapSound();
+                showStatusBadge("SNAP! PLAY IN PROGRESS", "bg-emerald-500/20 text-emerald-300 border-emerald-500/40");
+            }
+        }
+
+        function showStatusBadge(text, styleClasses) {
+            const b = document.getElementById('statusBadge');
+            b.innerText = text;
+            b.className = `glass-panel px-4 py-2 rounded-xl text-xs font-bold text-center uppercase tracking-wider transition-all border ${styleClasses}`;
+            b.classList.remove('hidden');
+        }
+
+        function sampleRoutePosition(waypoints, progressRatio) {
+            if (!waypoints || waypoints.length === 0) return new THREE.Vector3();
+            if (waypoints.length === 1) return waypoints[0].clone();
+
+            const totalSegments = waypoints.length - 1;
+            const scaled = progressRatio * totalSegments;
+            const index = Math.min(Math.floor(scaled), totalSegments - 1);
+            const subRatio = scaled - index;
+
+            const p1 = waypoints[index];
+            const p2 = waypoints[index + 1];
+
+            return new THREE.Vector3().lerpVectors(p1, p2, subRatio);
+        }
+
+        function updatePhysics(dt) {
+            if (!simRunning || playTackled) return;
+
+            simTime += dt * simSpeed;
+            if (simTime > SIM_MAX_TIME) {
+                simTime = SIM_MAX_TIME;
+                simRunning = false;
+                document.getElementById('playIcon').className = 'fa-solid fa-rotate-left';
+                document.getElementById('playText').innerText = 'REPLAY';
+            }
+
+            document.getElementById('timeSlider').value = simTime.toFixed(2);
+            document.getElementById('simTimeDisplay').innerText = simTime.toFixed(1) + 's';
+
+            const playerSpeedFactor = 0.28;
+            const routeProgress = Math.min(1.0, (simTime * playerSpeedFactor));
+
+            const isRunPlay = (currentPlay.players.RB && currentPlay.players.RB.route === 'handoff');
+            const handoffCompleted = isRunPlay && (simTime >= 0.85);
+
+            // 8U Pass Clock (Ball must be thrown within 4.8s in 8U youth games)
+            if (!isRunPlay && !ballThrown && simTime >= 4.8 && !playTackled) {
+                playTackled = true;
+                simRunning = false;
+                playWhistle();
+                showStatusBadge("WHISTLE! 8U PASS CLOCK EXPIRED (NO RUSH)", "bg-amber-500/30 text-amber-300 border-amber-500");
+                document.getElementById('playIcon').className = 'fa-solid fa-rotate-left';
+                document.getElementById('playText').innerText = 'REPLAY';
+                return;
+            }
+
+            // Move Offensive Receivers
+            OFFENSIVE_ROLES.forEach(r => {
+                const pObj = offensivePlayers[r.id];
+                if (r.id === 'QB') {
+                    const qbDropT = Math.min(1.0, simTime / 1.1);
+                    const qbPos = sampleRoutePosition(pObj.waypoints, qbDropT);
+                    pObj.mesh.position.copy(qbPos);
+                    pObj.currentPos.copy(qbPos);
+
+                    const targetObj = offensivePlayers[currentPlay.primaryTarget];
+                    if (targetObj) {
+                        setPlayerFacing(pObj.mesh, targetObj.mesh.position.x, targetObj.mesh.position.z);
+                    }
+                    animatePlayerStride(pObj.mesh, qbDropT < 0.95, simTime, 12);
+                } else {
+                    const prevPos = pObj.mesh.position.clone();
+                    const nextPos = sampleRoutePosition(pObj.waypoints, routeProgress);
+                    pObj.mesh.position.copy(nextPos);
+                    pObj.currentPos.copy(nextPos);
+
+                    const delta = nextPos.clone().sub(prevPos);
+                    const isMoving = (delta.lengthSq() > 0.0001);
+                    if (isMoving) {
+                        setPlayerFacing(pObj.mesh, nextPos.x + delta.x, nextPos.z + delta.z);
+                    }
+                    animatePlayerStride(pObj.mesh, isMoving && routeProgress < 0.98, simTime);
+                }
+            });
+
+            // Ball Flight Logic
+            const qbObj = offensivePlayers['QB'];
+            const targetReceiver = offensivePlayers[currentPlay.primaryTarget];
+
+            if (simTime < 0.35) {
+                const snapT = simTime / 0.35;
+                footballMesh.position.lerpVectors(
+                    new THREE.Vector3(offensivePlayers['C'].startPos.x, 0.3, offensivePlayers['C'].startPos.z),
+                    new THREE.Vector3(qbObj.currentPos.x, 1.1, qbObj.currentPos.z),
+                    snapT
+                );
+            } else if (simTime < currentPlay.passTiming) {
+                footballMesh.position.set(qbObj.currentPos.x, 1.3, qbObj.currentPos.z - 0.25);
+                footballMesh.rotation.y = qbObj.mesh.rotation.y;
+            } else if (!ballThrown && simTime >= currentPlay.passTiming) {
+                ballThrown = true;
+                ballInFlight = true;
+                throwStartTime = simTime;
+                ballStartPos.set(qbObj.currentPos.x, 1.4, qbObj.currentPos.z);
+                
+                const leadProgress = Math.min(1.0, (simTime + throwDuration) * playerSpeedFactor);
+                ballTargetPos = sampleRoutePosition(targetReceiver.waypoints, leadProgress);
+                ballTargetPos.y = 1.2;
+
+                playWhistle();
+                showStatusBadge("PASS IN AIR! TARGETED TO " + currentPlay.primaryTarget, "bg-cyan-500/20 text-cyan-300 border-cyan-500/40");
+            } else if (ballInFlight) {
+                const flightT = Math.min(1.0, (simTime - throwStartTime) / throwDuration);
+                footballMesh.position.lerpVectors(ballStartPos, ballTargetPos, flightT);
+                const arcHeight = 4.2 * Math.sin(flightT * Math.PI);
+                footballMesh.position.y = (ballStartPos.y * (1 - flightT) + ballTargetPos.y * flightT) + arcHeight;
+
+                footballMesh.rotation.y += 0.35;
+                footballMesh.rotation.x = Math.PI / 2 + (flightT - 0.5) * 0.8;
+
+                if (flightT >= 1.0 && !passComplete) {
+                    ballInFlight = false;
+                    passComplete = true;
+                    playCatchSound();
+                    showStatusBadge("CATCH COMPLETE! GAIN OF YARDS", "bg-emerald-500/30 text-emerald-300 border-emerald-400");
+                }
+            } else if (passComplete) {
+                footballMesh.position.set(targetReceiver.currentPos.x, 1.2, targetReceiver.currentPos.z + 0.2);
+            }
+
+            const ballCarrier = passComplete ? targetReceiver : (handoffCompleted ? offensivePlayers['RB'] : null);
+            const ballLiveToPursue = handoffCompleted || ballInFlight || passComplete;
+
+            // Defensive Realism Update:
+            // 1. Defenders do NOT converge on the primary target before the catch.
+            // 2. Zone defenders hold assigned sectors (flats, hooks, deep halves) and only break when ball enters their sector.
+            // 3. Man defenders strictly track their assigned player and ignore the other receivers.
+            // 4. All defenders pursue ONLY when a completion or handoff occurs.
+            defensivePlayers.forEach(d => {
+                let moved = false;
+                const prevPos = d.currentPos.clone();
+
+                if (ballCarrier) {
+                    // Ball is caught or handed off: ALL defenders break and pursue the ball carrier to pull flags
+                    const toCarrier = new THREE.Vector3().subVectors(ballCarrier.currentPos, d.currentPos);
+                    toCarrier.y = 0;
+                    const dist = toCarrier.length();
+                    if (dist > 0.85) {
+                        toCarrier.normalize().multiplyScalar(0.076);
+                        d.currentPos.add(toCarrier);
+                        d.mesh.position.copy(d.currentPos);
+                        setPlayerFacing(d.mesh, ballCarrier.currentPos.x, ballCarrier.currentPos.z);
+                        moved = true;
+                    } else if (!playTackled) {
+                        playTackled = true;
+                        simRunning = false;
+                        playWhistle();
+                        showStatusBadge(`FLAG PULLED BY #${d.mesh.userData.number} (${d.type})! TACKLE!`, "bg-amber-500/30 text-amber-300 border-amber-500");
+                        document.getElementById('playIcon').className = 'fa-solid fa-rotate-left';
+                        document.getElementById('playText').innerText = 'REPLAY';
+                    }
+                } else if (ballInFlight) {
+                    // Ball is in the air: Only defenders responsible for this area react
+                    const distToTarget = Math.hypot(d.currentPos.x - ballTargetPos.x, d.currentPos.z - ballTargetPos.z);
+                    const isZoneDefenderNearby = (distToTarget < 9.0);
+                    const isAssignedManCoverage = (currentPlay.defenseCoverage === 'man' && (
+                        (d.id === 'CB1' && currentPlay.primaryTarget === 'WR1') ||
+                        (d.id === 'CB2' && currentPlay.primaryTarget === 'WR2') ||
+                        (d.id === 'MLB' && currentPlay.primaryTarget === 'SLT') ||
+                        (d.id === 'ROV' && currentPlay.primaryTarget === 'RB') ||
+                        (d.type === 'FS' && ballTargetPos.x < 0) ||
+                        (d.type === 'SS' && ballTargetPos.x >= 0)
+                    ));
+
+                    if (isZoneDefenderNearby || isAssignedManCoverage) {
+                        const toBall = new THREE.Vector3().subVectors(ballTargetPos, d.currentPos);
+                        toBall.y = 0;
+                        if (toBall.length() > 0.7) {
+                            toBall.normalize().multiplyScalar(0.082);
+                            d.currentPos.add(toBall);
+                            d.mesh.position.copy(d.currentPos);
+                            setPlayerFacing(d.mesh, ballTargetPos.x, ballTargetPos.z);
+                            moved = true;
+                        }
+                    } else {
+                        // Defenders on the opposite side of the field maintain discipline and do not charge across
+                        setPlayerFacing(d.mesh, ballTargetPos.x, ballTargetPos.z);
+                    }
+                } else {
+                    // PRE-PASS / POCKET TIMING: Defenders strictly play authentic coverage
+                    if (currentPlay.defenseCoverage === 'man') {
+                        // Pure Man-to-Man: Each defender mirrors THEIR OWN assigned receiver
+                        let assignedRole = (d.id === 'CB1') ? 'WR1' : ((d.id === 'CB2') ? 'WR2' : ((d.id === 'MLB') ? 'SLT' : 'RB'));
+                        
+                        if (d.type === 'FS') {
+                            // Free Safety: Centerfield robber, shades toward strength of formation
+                            const targetZ = d.basePos.z - Math.min(2.0, simTime * 0.5);
+                            d.currentPos.z += (targetZ - d.currentPos.z) * 0.05;
+                            d.currentPos.x += (-2.0 - d.currentPos.x) * 0.04;
+                            d.mesh.position.copy(d.currentPos);
+                            setPlayerFacing(d.mesh, qbObj.currentPos.x, qbObj.currentPos.z);
+                            moved = true;
+                        } else if (d.type === 'SS') {
+                            // Strong Safety: Over-the-top support on twin/trips side
+                            const targetZ = d.basePos.z - Math.min(2.0, simTime * 0.5);
+                            d.currentPos.z += (targetZ - d.currentPos.z) * 0.05;
+                            d.currentPos.x += (3.0 - d.currentPos.x) * 0.04;
+                            d.mesh.position.copy(d.currentPos);
+                            setPlayerFacing(d.mesh, qbObj.currentPos.x, qbObj.currentPos.z);
+                            moved = true;
+                        } else {
+                            // Cornerbacks and Linebackers: Stick like glue to their assigned man
+                            const assignedRec = offensivePlayers[assignedRole];
+                            if (assignedRec) {
+                                const desiredZ = Math.min(-1.0, assignedRec.currentPos.z - 1.8);
+                                const desiredX = clampInBounds(assignedRec.currentPos.x * 0.96);
+                                const toTarget = new THREE.Vector3(desiredX - d.currentPos.x, 0, desiredZ - d.currentPos.z);
+                                if (toTarget.length() > 0.25) {
+                                    toTarget.normalize().multiplyScalar(0.06);
+                                    d.currentPos.add(toTarget);
+                                    d.currentPos.z = Math.min(-0.6, d.currentPos.z); // Respect LOS
+                                    d.mesh.position.copy(d.currentPos);
+                                    moved = true;
+                                }
+                                setPlayerFacing(d.mesh, assignedRec.currentPos.x, assignedRec.currentPos.z);
+                            }
+                        }
+                    } else if (currentPlay.defenseCoverage === 'contain') {
+                        // Short Contain: Wall off the boundaries and protect against jet sweeps and flats
+                        const dropDepth = Math.min(1.5, simTime * 0.4);
+                        d.currentPos.z = d.basePos.z - dropDepth;
+                        d.mesh.position.copy(d.currentPos);
+                        setPlayerFacing(d.mesh, qbObj.currentPos.x, qbObj.currentPos.z);
+                    } else {
+                        // Cover 2 Zone drops:
+                        // CB1 & CB2: Underneath boundary flats (holding wide leverage)
+                        // MLB & ROV: Middle hook/curl zones (sitting 4-6 yards deep)
+                        // FS & SS: Deep halves (backpedaling to 14 yards)
+                        if (d.type === 'FS' || d.type === 'SS') {
+                            const backpedalAmount = Math.min(3.5, simTime * 0.85);
+                            const targetZ = d.basePos.z - backpedalAmount;
+                            d.currentPos.z += (targetZ - d.currentPos.z) * 0.05;
+                            d.mesh.position.copy(d.currentPos);
+                            moved = true;
+                        } else if (d.id === 'CB1') {
+                            // Left Flat
+                            d.currentPos.x += (-11.5 - d.currentPos.x) * 0.04;
+                            d.currentPos.z += (-4.5 - d.currentPos.z) * 0.04;
+                            d.mesh.position.copy(d.currentPos);
+                            moved = true;
+                        } else if (d.id === 'CB2') {
+                            // Right Flat
+                            d.currentPos.x += (11.5 - d.currentPos.x) * 0.04;
+                            d.currentPos.z += (-4.5 - d.currentPos.z) * 0.04;
+                            d.mesh.position.copy(d.currentPos);
+                            moved = true;
+                        } else {
+                            // Linebackers (MLB, ROV) drop to Hook-Curl
+                            const hookDrop = Math.min(2.5, simTime * 0.6);
+                            d.currentPos.z = d.basePos.z - hookDrop;
+                            d.mesh.position.copy(d.currentPos);
+                            moved = true;
+                        }
+                        setPlayerFacing(d.mesh, qbObj.currentPos.x, qbObj.currentPos.z);
+                    }
+                }
+
+                // Animate running stride if moving, otherwise stand upright
+                animatePlayerStride(d.mesh, moved, simTime);
+            });
+        }
+        const wbCanvas = document.getElementById('whiteboardCanvas');
+        const wbCtx = wbCanvas.getContext('2d');
+
+        function resizeWhiteboard() {
+            const rect = wbCanvas.getBoundingClientRect();
+            wbCanvas.width = rect.width * window.devicePixelRatio;
+            wbCanvas.height = rect.height * window.devicePixelRatio;
+            drawWhiteboard();
+        }
+
+        function worldToCanvas(x, z) {
+            const w = wbCanvas.width;
+            const h = wbCanvas.height;
+            // x: positive X is on the right (+), negative X is on the left (-). Field width is 30 yds in-bounds (-15 to 15)
+            const cx = w / 2 + (x / 16.5) * (w * 0.44);
+            // z: 0 is LOS (placed at 62% of canvas height). 
+            // Downfield (-Z) goes UP towards top of whiteboard (opponent endzone). 
+            // Backfield (+Z) goes DOWN towards bottom of whiteboard (QB / RB backfield).
+            const cy = h * 0.62 + (z / 20) * (h * 0.58);
+            return { x: cx, y: cy };
+        }
+
+        function canvasToWorld(cx, cy) {
+            const w = wbCanvas.width;
+            const h = wbCanvas.height;
+            const x = ((cx - w / 2) / (w * 0.44)) * 16.5;
+            const z = ((cy - h * 0.62) / (h * 0.58)) * 20;
+            return { x, z };
+        }
+
+        function drawWhiteboard() {
+            if (!wbCtx) return;
+            const w = wbCanvas.width;
+            const h = wbCanvas.height;
+
+            wbCtx.clearRect(0, 0, w, h);
+
+            // Sideline boundary lines on Whiteboard
+            const leftBoundX = worldToCanvas(-15, 0).x;
+            const rightBoundX = worldToCanvas(15, 0).x;
+
+            wbCtx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            wbCtx.fillRect(0, 0, leftBoundX, h);
+            wbCtx.fillRect(rightBoundX, 0, w - rightBoundX, h);
+
+            wbCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            wbCtx.lineWidth = 1.5;
+            wbCtx.beginPath();
+            wbCtx.moveTo(leftBoundX, 0);
+            wbCtx.lineTo(leftBoundX, h);
+            wbCtx.moveTo(rightBoundX, 0);
+            wbCtx.lineTo(rightBoundX, h);
+            wbCtx.stroke();
+
+            // LOS (Z = 0) and 5-Yard Defense Buffer (Z = -5)
+            const losY = worldToCanvas(0, 0).y;
+            const bufferY = worldToCanvas(0, -5).y;
+
+            wbCtx.strokeStyle = 'rgba(59, 130, 246, 0.85)';
+            wbCtx.lineWidth = 3;
+            wbCtx.beginPath();
+            wbCtx.moveTo(leftBoundX, losY);
+            wbCtx.lineTo(rightBoundX, losY);
+            wbCtx.stroke();
+
+            wbCtx.fillStyle = '#60a5fa';
+            wbCtx.font = 'bold 11px monospace';
+            wbCtx.fillText('--- LOS ---', leftBoundX + 8, losY + 12);
+
+            wbCtx.strokeStyle = 'rgba(234, 179, 8, 0.75)';
+            wbCtx.setLineDash([5, 5]);
+            wbCtx.beginPath();
+            wbCtx.moveTo(leftBoundX, bufferY);
+            wbCtx.lineTo(rightBoundX, bufferY);
+            wbCtx.stroke();
+            wbCtx.setLineDash([]);
+            wbCtx.fillStyle = '#facc15';
+            wbCtx.fillText('5-YD BUFFER', leftBoundX + 8, bufferY - 5);
+
+            // Draw Route Stems & Arrows
+            OFFENSIVE_ROLES.forEach(r => {
+                const off = currentPlay.positions[r.id] || { x: 0, z: 0 };
+                const start = new THREE.Vector3(off.x, 0, off.z);
+                const rConf = currentPlay.players[r.id] || { route: 'go', depth: 8, direction: 'left' };
+                const waypoints = generateRouteWaypoints(r.id, start, rConf);
+
+                const isTarget = (r.id === currentPlay.primaryTarget);
+                const isSelected = (r.id === selectedPlayerId);
+
+                wbCtx.strokeStyle = isTarget ? '#f59e0b' : (isSelected ? '#10b981' : '#38bdf8');
+                wbCtx.lineWidth = isTarget ? 4 : (isSelected ? 3.5 : 2.5);
+
+                wbCtx.beginPath();
+                for (let i = 0; i < waypoints.length; i++) {
+                    const cPt = worldToCanvas(waypoints[i].x, waypoints[i].z);
+                    if (i === 0) wbCtx.moveTo(cPt.x, cPt.y);
+                    else wbCtx.lineTo(cPt.x, cPt.y);
+                }
+                wbCtx.stroke();
+
+                if (waypoints.length > 1) {
+                    const last = waypoints[waypoints.length - 1];
+                    const prev = waypoints[waypoints.length - 2];
+                    const p1 = worldToCanvas(prev.x, prev.z);
+                    const p2 = worldToCanvas(last.x, last.z);
+                    const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+                    wbCtx.fillStyle = wbCtx.strokeStyle;
+                    wbCtx.beginPath();
+                    wbCtx.moveTo(p2.x, p2.y);
+                    wbCtx.lineTo(p2.x - 12 * Math.cos(angle - Math.PI / 6), p2.y - 12 * Math.sin(angle - Math.PI / 6));
+                    wbCtx.lineTo(p2.x - 12 * Math.cos(angle + Math.PI / 6), p2.y - 12 * Math.sin(angle + Math.PI / 6));
+                    wbCtx.closePath();
+                    wbCtx.fill();
+                }
+            });
+
+            // Draw Offensive Players (Draggable)
+            OFFENSIVE_ROLES.forEach(r => {
+                const off = currentPlay.positions[r.id] || { x: 0, z: 0 };
+                const cPt = worldToCanvas(off.x, off.z);
+                const isSelected = (r.id === selectedPlayerId);
+                const isTarget = (r.id === currentPlay.primaryTarget);
+                const isCenter = (r.id === 'C');
+
+                if (isTarget) {
+                    wbCtx.strokeStyle = '#f59e0b';
+                    wbCtx.lineWidth = 4;
+                    wbCtx.beginPath();
+                    wbCtx.arc(cPt.x, cPt.y, 20, 0, Math.PI * 2);
+                    wbCtx.stroke();
+                }
+
+                if (isSelected) {
+                    wbCtx.strokeStyle = '#38bdf8';
+                    wbCtx.lineWidth = 3.5;
+                    wbCtx.beginPath();
+                    wbCtx.arc(cPt.x, cPt.y, 16, 0, Math.PI * 2);
+                    wbCtx.stroke();
+                }
+
+                wbCtx.fillStyle = r.color;
+                wbCtx.beginPath();
+                wbCtx.arc(cPt.x, cPt.y, 13, 0, Math.PI * 2);
+                wbCtx.fill();
+
+                if (isCenter) {
+                    wbCtx.strokeStyle = '#ffffff';
+                    wbCtx.lineWidth = 2;
+                    wbCtx.beginPath();
+                    wbCtx.arc(cPt.x, cPt.y, 13, 0, Math.PI * 2);
+                    wbCtx.stroke();
+                }
+
+                wbCtx.fillStyle = '#ffffff';
+                wbCtx.font = 'bold 10px sans-serif';
+                wbCtx.textAlign = 'center';
+                wbCtx.textBaseline = 'middle';
+                wbCtx.fillText(r.id, cPt.x, cPt.y);
+            });
+
+            // Draw Defensive Players
+            defensivePlayers.forEach(d => {
+                const cPt = worldToCanvas(d.basePos.x, d.basePos.z);
+                wbCtx.fillStyle = '#ef4444';
+                wbCtx.beginPath();
+                wbCtx.moveTo(cPt.x, cPt.y - 8);
+                wbCtx.lineTo(cPt.x - 7, cPt.y + 6);
+                wbCtx.lineTo(cPt.x + 7, cPt.y + 6);
+                wbCtx.closePath();
+                wbCtx.fill();
+
+                wbCtx.fillStyle = '#ffffff';
+                wbCtx.font = '9px sans-serif';
+                wbCtx.fillText(d.type, cPt.x, cPt.y + 16);
+            });
+        }
+
+        // Drag and Drop State on Whiteboard Canvas
+        let isDraggingPlayer = false;
+        let draggedPlayerRole = null;
+
+        function getWhiteboardCoords(evt) {
+            const rect = wbCanvas.getBoundingClientRect();
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            return {
+                x: (clientX - rect.left) * (wbCanvas.width / rect.width),
+                y: (clientY - rect.top) * (wbCanvas.height / rect.height)
+            };
+        }
+
+        function handlePointerDown(e) {
+            const pt = getWhiteboardCoords(e);
+            
+            for (let i = 0; i < OFFENSIVE_ROLES.length; i++) {
+                const r = OFFENSIVE_ROLES[i];
+                const off = currentPlay.positions[r.id] || { x: 0, z: 0 };
+                const cPt = worldToCanvas(off.x, off.z);
+                const dist = Math.hypot(pt.x - cPt.x, pt.y - cPt.y);
+
+                if (dist < 26) {
+                    selectedPlayerId = r.id;
+                    updatePlayerConfigCard();
+                    renderRosterTabs();
+                    
+                    if (r.id === 'C') {
+                        showNotification("Center is locked at (0, 0) over the ball");
+                        isDraggingPlayer = false;
+                    } else {
+                        isDraggingPlayer = true;
+                        draggedPlayerRole = r.id;
+                    }
+                    drawWhiteboard();
+                    break;
+                }
+            }
+        }
+
+        function handlePointerMove(e) {
+            if (!isDraggingPlayer || !draggedPlayerRole) return;
+            e.preventDefault();
+            const pt = getWhiteboardCoords(e);
+            const wCoord = canvasToWorld(pt.x, pt.y);
+
+            // Enforce realistic in-bounds lateral limits: [-13.0, 13.0] (2 yds off sideline chalk)
+            let clampedX = Math.max(-13.0, Math.min(13.0, Math.round(wCoord.x * 2) / 2));
+            // Backfield only: 0 to 6.5 yards behind LOS
+            let clampedZ = Math.max(0.0, Math.min(6.5, Math.round(wCoord.z * 4) / 4));
+
+            if (draggedPlayerRole === 'QB') {
+                clampedZ = Math.max(2.5, clampedZ); // Shotgun minimum
+            }
+
+            currentPlay.positions[draggedPlayerRole].x = clampedX;
+            currentPlay.positions[draggedPlayerRole].y = 0;
+            currentPlay.positions[draggedPlayerRole].z = clampedZ;
+
+            updatePlayerConfigCard();
+            updateFormationsAndRoutes();
+        }
+
+        function handlePointerUp() {
+            if (isDraggingPlayer) {
+                isDraggingPlayer = false;
+                draggedPlayerRole = null;
+                updateFormationsAndRoutes();
+            }
+        }
+
+        wbCanvas.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+
+        wbCanvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+        window.addEventListener('touchmove', handlePointerMove, { passive: false });
+        window.addEventListener('touchend', handlePointerUp);
+
+        function updatePlayerConfigCard() {
+            const pMeta = OFFENSIVE_ROLES.find(r => r.id === selectedPlayerId) || OFFENSIVE_ROLES[0];
+            const pConf = currentPlay.players[selectedPlayerId] || { route: 'go', depth: 8, direction: 'left' };
+            const pos = currentPlay.positions[selectedPlayerId] || { x: 0, z: 0 };
+
+            document.getElementById('cfgPlayerBadge').innerText = pMeta.id;
+            document.getElementById('cfgPlayerBadge').style.backgroundColor = pMeta.color;
+            document.getElementById('cfgPlayerName').innerText = `${pMeta.name} (#${pMeta.num})`;
+            
+            const isCenter = (selectedPlayerId === 'C');
+            document.getElementById('cfgPlayerCoord').innerText = isCenter 
+                ? "Position: Locked at LOS (0.0 yds)" 
+                : `Position: X: ${pos.x > 0 ? '+' : ''}${pos.x.toFixed(1)} yds, Depth: ${pos.z.toFixed(1)} yds behind LOS`;
+
+            // Sliders sync
+            const sliderX = document.getElementById('sliderPlayerX');
+            const sliderZ = document.getElementById('sliderPlayerZ');
+            const alignContainer = document.getElementById('playerAlignSliders');
+
+            if (isCenter) {
+                alignContainer.classList.add('opacity-40', 'pointer-events-none');
+            } else {
+                alignContainer.classList.remove('opacity-40', 'pointer-events-none');
+                sliderX.value = pos.x;
+                sliderZ.value = pos.z;
+                document.getElementById('valPlayerX').innerText = `${pos.x > 0 ? '+' : ''}${pos.x.toFixed(1)} yds`;
+                document.getElementById('valPlayerZ').innerText = `${pos.z.toFixed(1)} yds`;
+            }
+
+            // Highlight Route Buttons
+            document.querySelectorAll('.route-opt-btn').forEach(b => {
+                if (b.dataset.route === pConf.route) {
+                    b.classList.add('bg-blue-600', 'text-white', 'border-blue-400');
+                    b.classList.remove('bg-slate-800', 'text-slate-300');
+                } else {
+                    b.classList.remove('bg-blue-600', 'text-white', 'border-blue-400');
+                    b.classList.add('bg-slate-800', 'text-slate-300');
+                }
+            });
+
+            // Primary Target Button
+            const isPrimary = (currentPlay.primaryTarget === selectedPlayerId);
+            const btnPrim = document.getElementById('btnSetPrimary');
+            if (isPrimary) {
+                btnPrim.className = "text-[11px] px-2.5 py-1 rounded bg-amber-500 text-slate-950 font-bold shadow transition";
+                btnPrim.innerText = "★ Primary Target (Active)";
+            } else {
+                btnPrim.className = "text-[11px] px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500 hover:text-slate-950 transition font-semibold";
+                btnPrim.innerText = "★ Set as Primary Target";
+            }
+
+            // Cut Direction buttons
+            const dir = pConf.direction || 'left';
+            const btnLeft = document.getElementById('btnCutLeft');
+            const btnRight = document.getElementById('btnCutRight');
+            if (btnLeft && btnRight) {
+                btnLeft.className = `px-2 py-0.5 rounded text-xs border ${dir === 'left' ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-800 text-slate-300 border-slate-700'}`;
+                btnRight.className = `px-2 py-0.5 rounded text-xs border ${dir === 'right' ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-800 text-slate-300 border-slate-700'}`;
+            }
+
+            document.getElementById('cfgDepthInput').value = pConf.depth || 7;
+            document.getElementById('depthValText').innerText = `${pConf.depth || 7} yds`;
+            document.getElementById('cfgTimingInput').value = currentPlay.passTiming || 2.2;
+            document.getElementById('timingValText').innerText = `${currentPlay.passTiming || 2.2}s`;
+        }
+
+        function updateDesignerUI() {
+            updatePlayerConfigCard();
+            renderRosterTabs();
+            renderRouteSelectorGrid();
+            drawWhiteboard();
+            updateHUDSummary();
+        }
+
+        // Safe Helper for Event Listeners
+        function addSafeListener(id, event, handler) {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener(event, handler);
+        }
+
+        // Sliders input listeners for fine positioning
+        addSafeListener('sliderPlayerX', 'input', (e) => {
+            if (selectedPlayerId === 'C') return;
+            const val = parseFloat(e.target.value);
+            if (!currentPlay.positions[selectedPlayerId]) currentPlay.positions[selectedPlayerId] = { x: 0, z: 0 };
+            currentPlay.positions[selectedPlayerId].x = val;
+            const valDisplay = document.getElementById('valPlayerX');
+            if (valDisplay) valDisplay.innerText = `${val > 0 ? '+' : ''}${val.toFixed(1)} yds`;
+            updateFormationsAndRoutes();
+        });
+
+        addSafeListener('sliderPlayerZ', 'input', (e) => {
+            if (selectedPlayerId === 'C') return;
+            const val = parseFloat(e.target.value);
+            if (!currentPlay.positions[selectedPlayerId]) currentPlay.positions[selectedPlayerId] = { x: 0, z: 0 };
+            currentPlay.positions[selectedPlayerId].z = val;
+            const valDisplay = document.getElementById('valPlayerZ');
+            if (valDisplay) valDisplay.innerText = `${val.toFixed(1)} yds`;
+            updateFormationsAndRoutes();
+        });
+
+        // Direction toggles
+        addSafeListener('btnCutLeft', 'click', () => {
+            if (currentPlay.players[selectedPlayerId]) {
+                currentPlay.players[selectedPlayerId].direction = 'left';
+                updatePlayerConfigCard();
+                updateFormationsAndRoutes();
+            }
+        });
+
+        addSafeListener('btnCutRight', 'click', () => {
+            if (currentPlay.players[selectedPlayerId]) {
+                currentPlay.players[selectedPlayerId].direction = 'right';
+                updatePlayerConfigCard();
+                updateFormationsAndRoutes();
+            }
+        });
+
+        // Defensive Coverage radio listeners
+        document.querySelectorAll('input[name="defCoverage"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                currentPlay.defenseCoverage = e.target.value;
+                updateFormationsAndRoutes();
+                showNotification(`Defense set to ${e.target.value.toUpperCase()}`);
+            });
+        });
+
+        // Formation change listener
+        addSafeListener('selectFormation', 'change', (e) => {
+            const formKey = e.target.value;
+            currentPlay.formation = formKey;
+            const template = FORMATIONS[formKey];
+            if (template) {
+                currentPlay.positions = JSON.parse(JSON.stringify(template));
+            }
+            updateDesignerUI();
+            updateFormationsAndRoutes();
+            showNotification(`Aligned to ${formKey.replace('_', ' ').toUpperCase()}`);
+        });
+
+        // Save & Playbook Listeners
+        addSafeListener('btnSavePlay', 'click', saveCurrentPlayChanges);
+        addSafeListener('btnSaveAsNew', 'click', savePlayAsNew);
+        addSafeListener('btnDeletePlay', 'click', deleteCurrentPlay);
+
+        addSafeListener('btnNewPlayHeader', 'click', createNewPlay);
+        addSafeListener('btnNewPlayModal', 'click', createNewPlay);
+
+        addSafeListener('selectPlaybookItem', 'change', (e) => {
+            loadPlay(e.target.value);
+        });
+
+        addSafeListener('btnPlayPause', 'click', () => {
+            initAudio();
+            toggleSimulation();
+        });
+
+        addSafeListener('btnReset', 'click', () => {
+            resetSimulation();
+        });
+
+        document.querySelectorAll('.cam-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                const camType = b.getAttribute('data-cam');
+                setCameraView(camType);
+            });
+        });
+
+        const designerModal = document.getElementById('designerModal');
+        addSafeListener('btnToggleDesigner', 'click', () => {
+            if (designerModal) {
+                designerModal.classList.toggle('translate-x-full');
+                setTimeout(resizeWhiteboard, 310);
+            }
+        });
+        addSafeListener('btnCloseDesigner', 'click', () => {
+            if (designerModal) designerModal.classList.add('translate-x-full');
+        });
+
+        addSafeListener('btnSetPrimary', 'click', () => {
+            currentPlay.primaryTarget = selectedPlayerId;
+            updatePlayerConfigCard();
+            renderRosterTabs();
+            updateFormationsAndRoutes();
+            showNotification(`Set ${selectedPlayerId} as Primary Target`);
+        });
+
+        addSafeListener('cfgDepthInput', 'input', (e) => {
+            const val = parseInt(e.target.value);
+            const depthDisplay = document.getElementById('depthValText');
+            if (depthDisplay) depthDisplay.innerText = `${val} yds`;
+            if (currentPlay.players[selectedPlayerId]) {
+                currentPlay.players[selectedPlayerId].depth = val;
+                updateFormationsAndRoutes();
+            }
+        });
+
+        addSafeListener('cfgTimingInput', 'input', (e) => {
+            const val = parseFloat(e.target.value);
+            const timingDisplay = document.getElementById('timingValText');
+            if (timingDisplay) timingDisplay.innerText = `${val}s`;
+            currentPlay.passTiming = val;
+            updateHUDSummary();
+        });
+
+        addSafeListener('inputPlayName', 'input', (e) => {
+            currentPlay.name = e.target.value;
+            const displayName = document.getElementById('displayPlayName');
+            if (displayName) displayName.innerText = e.target.value;
+        });
+
+        addSafeListener('timeSlider', 'input', (e) => {
+            simTime = parseFloat(e.target.value);
+            const timeDisplay = document.getElementById('simTimeDisplay');
+            if (timeDisplay) timeDisplay.innerText = simTime.toFixed(1) + 's';
+            updatePhysics(0);
+        });
+
+        addSafeListener('btnSpeed', 'click', () => {
+            const speedBtn = document.getElementById('btnSpeed');
+            if (simSpeed === 1.0) {
+                simSpeed = 0.5;
+                if (speedBtn) speedBtn.innerText = '0.5x';
+            } else if (simSpeed === 0.5) {
+                simSpeed = 1.5;
+                if (speedBtn) speedBtn.innerText = '1.5x';
+            } else {
+                simSpeed = 1.0;
+                if (speedBtn) speedBtn.innerText = '1.0x';
+            }
+        });
+
+        addSafeListener('btnAudioToggle', 'click', () => {
+            audioEnabled = !audioEnabled;
+            const audioIcon = document.getElementById('audioIcon');
+            if (audioIcon) {
+                audioIcon.className = audioEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-rose-400';
+            }
+        });
+
+        addSafeListener('btnApplyAndSimulate', 'click', () => {
+            initAudio();
+            saveCurrentPlayChanges();
+            resetSimulation();
+            toggleSimulation();
+            if (designerModal) designerModal.classList.add('translate-x-full');
+        });
+
+        function showNotification(msg) {
+            const note = document.createElement('div');
+            note.className = "fixed bottom-20 left-1/2 -translate-x-1/2 glass-panel px-4 py-2 rounded-xl text-xs font-semibold text-emerald-300 border border-emerald-500/40 shadow-xl z-50 transition-all";
+            note.innerText = msg;
+            document.body.appendChild(note);
+            setTimeout(() => { note.remove(); }, 2200);
+        }
+
+        let lastTimestamp = performance.now();
+
+        function animate(timestamp) {
+            requestAnimationFrame(animate);
+            const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
+            lastTimestamp = timestamp;
+
+            updatePhysics(dt);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            resizeWhiteboard();
+        });
+
+        window.onload = function() {
+            initAudio();
+            initThreeScene();
+            updatePlaybookDropdown();
+            renderQuickPlaybookList();
+            updateFormationsAndRoutes();
+            updateDesignerUI();
+            resizeWhiteboard();
+            animate(performance.now());
+        };
+    </script>
+</body>
+</html>
